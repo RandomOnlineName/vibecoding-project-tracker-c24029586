@@ -199,15 +199,16 @@ export default function App() {
   //   const { anchors, setAnchorUrl } = useAnchors();
  
   return (
-    <div className="min-h-screen p-6">
-      <header className="mb-6 flex items-end justify-between">
+    <div className="min-h-screen bg-surface-page text-text-primary p-6">
+      <header className="mb-6 flex items-end justify-between border-b border-border-subtle pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Vibecoding Project Tracker
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
+            <span>VibeTracker</span>
+            <span className="inline-block w-2 h-2 rounded-full bg-gradient-to-tr from-brand-primary to-brand-accent"></span>
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-xs text-text-muted mt-1">
             {/* Replace this line with your team name from PRD §11. */}
-            Team starter
+            Team starter · Utilitarian developer workspace
           </p>
         </div>
       </header>
@@ -225,12 +226,12 @@ export default function App() {
           Clicking a card should open the same modal in edit mode.
       */}
       {error && (
-        <div className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-due-overdue/40 bg-due-overdue/10 p-3 text-xs text-due-overdue">
           Can't reach the database API: {error}. Is the server running (<code>npm run server</code>)
           and MariaDB up?
         </div>
       )}
-      <main className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-slate-400">
+      <main className="flex h-64 items-center justify-center rounded-xl border border-dashed border-border-subtle bg-surface-column/50 text-text-muted text-sm">
         {loading
           ? 'Loading tasks…'
           : `Build the four-column board here · M4 (${tasks.length} tasks in MariaDB)`}

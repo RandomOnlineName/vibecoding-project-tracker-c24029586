@@ -5,30 +5,45 @@ export default {
     extend: {
       colors: {
         brand: {
-          primary: '#0f172a',
-          accent: '#f97316',
+          primary: '#3574f0',
+          accent: '#60a5fa',
         },
         surface: {
-          page: '#fef9ee',
-          card: '#ffffff',
+          page: '#1e1f22',
+          column: '#25272b',
+          card: '#2b2d30',
+          elevated: '#323438',
         },
+        border: {
+          subtle: '#393b40',
+        },
+        text: {
+          primary: '#dfe1e5',
+          muted: '#868a91',
+        },
+        // Scale 1: Task Type
         type: {
-          feature: '#10b981',
-          bug: '#ef4444',
+          urgent: '#ef4444',
+          bug: '#f97316',
+          feature: '#3b82f6',
+          additional: '#a855f7',
         },
+        // Scale 2: Significance / Deadline Urgency
+        significance: {
+          today: '#f43f5e',
+          soon: '#f59e0b',
+          sprint: '#38bdf8',
+          later: '#64748b',
+        },
+        // Legacy / milestone alias tokens
         due: {
-          safe: '#10b981',
+          safe: '#38bdf8',
           warning: '#f59e0b',
-          overdue: '#dc2626',
-          neutral: '#94a3b8',
+          overdue: '#f43f5e',
+          neutral: '#64748b',
         },
-        feature: '#10b981', // compatibility token
-        bug: '#ef4444',     // compatibility token
-      },
-      borderRadius: {
-        '2xl': '1rem',
-        '3xl': '1.5rem',
-        '4xl': '2rem',
+        feature: '#3b82f6',
+        bug: '#f97316',
       },
     },
   },

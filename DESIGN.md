@@ -1,56 +1,89 @@
 # Vibecoding Project Tracker — Design
 
-**Status:** Design doc finalized · matches the translucent, warm-gradient & hyper-rounded UI aesthetic from design references.
+**Status:** Design doc finalized · Dark mode utilitarian aesthetic inspired by JetBrains IDE & GitLab Dark.
 
 ---
 
 ## 1. Mood / vibe
 
-**One sentence:** A warm, luminous, and tactile workspace featuring frosted-glass column surfaces, radiant ambient gradients, and hyper-rounded pill components that make tracking agile vibecoding tasks feel delightful, clear, and effortless.
+**One sentence:** A focused, high-clarity dark mode developer cockpit inspired by JetBrains and GitLab, delivering utilitarian precision, crisp contrast, and low cognitive overhead for fast-moving vibecoding workflows.
 
 ### Visual References
 The images saved in the workspace define the visual language:
 
-- **Reference 1 (![alt text](image-4.png) — Primary Layout & Style):** Warm radiant amber-to-lime ambient gradient canvas, translucent frosted-white column containers (`rounded-3xl` with `backdrop-filter: blur`), floating crisp white task cards (`rounded-2xl`), and vibrant pill badges.
-- **Reference 2 (![alt text](image-5.png) — Urgency & Status Tinting):** High-visibility column and card emphasis for urgent or active states (e.g., terracotta/coral tinted active columns, status borders, and distinct category pills).
-- **Reference 3 (![alt text](image-6.png) — High Contrast & Tactile Controls):** Rich contrasting surface layers with glowing accents, clear typographic hierarchy, and smooth rounded action buttons.
+- **Reference 1 (![alt text](image-4.png) — Dark UI Structure & Contrast):** Deep charcoal surface hierarchy (`#1e1f22` / `#2b2d30`), clean card compartmentalization, and vivid accent indicators.
+- **Reference 2 (![alt text](image-5.png) — Kanban Layout & Urgency Tinting):** High-visibility column states, prominent status indicators, and distinct category pill badges.
+- **Reference 3 (![alt text](image-6.png) — Utilitarian Information Density):** GitLab-style information-dense issue tracking with clear stage counters, task metadata, and rapid keyboard/dropdown workflows.
 
 ### Anti-references (What we explicitly avoid)
-- **Anti-Reference (![alt text](image-7.png)):** Rigid, square-cornered, grey-bordered enterprise issue tracking boards (e.g., legacy GitLab/Jira) with dense, sterile, and uninviting layouts.
+- **Anti-Reference (![alt text](image-7.png)):** Overly soft, hyper-pastel, low-density light themes with washed-out contrast that sacrifice developer ergonomics and information density.
 
 ---
 
 ## 2. Color palette
 
-These design tokens provide high visual contrast (WCAG AA compliant) across frosted glass and glowing background layers.
+Utilitarian dark mode palette engineered for developer focus, high legibility (WCAG AA compliant), and reduced eye strain during extended coding sessions.
 
-### Brand & Surfaces
+### 2.1 Brand & Surfaces
 
 | Token | Hex / Value | Where it shows up |
 |---|---|---|
-| `brand-primary` | `#0f172a` | Headers, primary action buttons, active borders |
-| `brand-accent` | `#f97316` | Warm radiant amber/orange highlights, active indicators, focus rings |
-| `surface-page` | `#fef9ee` | Base page canvas (paired with ambient gradient: amber-100 to lime-100) |
-| `surface-column` | `rgba(255, 255, 255, 0.65)` | Translucent frosted Kanban column containers (`backdrop-blur-md`) |
-| `surface-card` | `#ffffff` | Floating task cards, modal backgrounds, input fields |
-| `text-primary` | `#0f172a` | Main task titles, modal headings, primary body copy |
-| `text-muted` | `#64748b` | Dates, stage counters, secondary captions, placeholders |
+| `brand-primary` | `#3574f0` | Primary buttons, active indicators, focus rings (JetBrains blue) |
+| `brand-accent` | `#60a5fa` | Cold gradient accent dot, link hovers, active tab highlights |
+| `surface-page` | `#1e1f22` | Root application background (JetBrains dark canvas) |
+| `surface-column` | `#25272b` | Kanban column container background |
+| `surface-card` | `#2b2d30` | Task cards, modal surface, elevated dropdown panels |
+| `surface-elevated` | `#323438` | Card hover state, active pill backgrounds, input controls |
+| `border-subtle` | `#393b40` | Utilitarian 1px component borders and dividers |
+| `text-primary` | `#dfe1e5` | Primary headings, task titles, modal body copy |
+| `text-muted` | `#868a91` | Stage counters, dates, metadata, placeholders |
 
-### Task Type (M6 `tag-style`)
+---
 
-| Token | Hex | When used |
-|---|---|---|
-| `type-feature` | `#10b981` | Emerald green pill badge & accent stripe for `feature` tasks |
-| `type-bug` | `#ef4444` | Vivid crimson/coral pill badge & alert accent for `bug` tasks |
+### 2.2 Task Type Color Scale (Functional Category)
 
-### Due-Date States (M8 `due-tint`)
+*Applied to **Pill Badges**, **Category Tags**, and **Task Labels**.*  
+*Mental Model: **Warm Spectrum (Red/Orange)** represents diagnostic issues to fix; **Cool Spectrum (Blue/Purple)** represents capabilities being built.*
 
-| Token | Hex | When used |
-|---|---|---|
-| `due-safe` | `#10b981` | Calm emerald green (deadline > 2 days away) |
-| `due-warning` | `#f59e0b` | Amber warning (deadline within 24 hours) |
-| `due-overdue` | `#dc2626` | Urgent red/crimson alert (past deadline) |
-| `due-neutral` | `#94a3b8` | Muted slate gray (completed / done tasks) |
+| Task Type | Token | Hex Code | Dark Mode Pill Classes (`Tailwind`) | Meaning & Visual Role |
+|---|---|---|---|---|
+| **Urgent Fixes** | `type-urgent` | `#ef4444` | `bg-red-500/15 text-red-400 border border-red-500/30` | Blocker / emergency patch. Demands immediate dev intervention. |
+| **Bugs** | `type-bug` | `#f97316` | `bg-orange-500/15 text-orange-400 border border-orange-500/30` | Standard defect or regression. Requires triage without panic. |
+| **Important Features** | `type-feature` | `#3b82f6` | `bg-blue-500/15 text-blue-400 border border-blue-500/30` | Core roadmap feature and high-priority deliverable. |
+| **Additional Features** | `type-additional` | `#a855f7` | `bg-purple-500/15 text-purple-400 border border-purple-500/30` | Enhancement, polish, stretch goal, or non-critical addition. |
+
+---
+
+### 2.3 Task Significance & Urgency Color Scale (Timeline)
+
+*Applied to **Card Left-Border Accent (`border-l-4`)**, **Due Date Chips**, and **Timeline Dots**.*  
+*Mental Model: A **thermal heat progression** from immediate red-hot deadline down to cold, quiet backlog.*
+
+| Significance Level | Token | Hex Code | Dark Mode Classes (`Tailwind`) | Meaning & Timeline Window |
+|---|---|---|---|---|
+| **Need Today** | `significance-today` | `#f43f5e` | `border-l-rose-500 text-rose-400 bg-rose-500/10` | Critical cutoff today (< 24 hours). Highest operational urgency. |
+| **Needed within 5 Days** | `significance-soon` | `#f59e0b` | `border-l-amber-500 text-amber-400 bg-amber-500/10` | Approaching deadline within current work week. Actively scheduled. |
+| **Needed within 2 Weeks** | `significance-sprint` | `#38bdf8` | `border-l-sky-500 text-sky-400 bg-sky-500/10` | Planned within current 2-week cycle. Healthy progress state. |
+| **Later** | `significance-later` | `#64748b` | `border-l-slate-600 text-slate-400 bg-slate-800/40` | Backlog or future phase. Low cognitive load on board scan. |
+
+---
+
+### 2.4 Dual-Scale Application Rules
+
+To prevent sensory conflict when both scales appear on the same task card:
+1. **Type** is always communicated through the **top pill badge** (`bg-{color}/15 text-{color} border border-{color}/30`).
+2. **Significance** is always communicated through the **left vertical card stripe (`border-l-4`)** and the **due-date chip** next to the calendar icon.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│▌ [ Urgent Fix ]                              ⏱ Due Today    │  <- Type in Pill Tag, Urgency in Due Chip
+│▌                                                             │
+│▌ Database timeout during bulk task fetch                     │
+│▌ 👤 Alex Reed                                💬 Context ready│
+└──────────────────────────────────────────────────────────────┘
+ ▲
+ └── Left 3px accent bar indicates Significance (e.g. Rose for "Need Today")
+```
 
 ---
 
@@ -58,29 +91,29 @@ These design tokens provide high visual contrast (WCAG AA compliant) across fros
 
 | Role | Font | Why |
 |---|---|---|
-| Heading | `Plus Jakarta Sans`, `system-ui`, sans-serif | Modern, geometric, friendly curves matching rounded surfaces |
-| Body | `Inter`, `system-ui`, sans-serif | High legibility and neutral proportions across small card sizes |
-| Monospace | `JetBrains Mono`, `ui-monospace`, monospace | Crisp formatting for code snippets, prompts, and tool tags |
+| Heading | `Inter`, `system-ui`, sans-serif | Clean, neutral sans-serif with high legibility on dark surfaces |
+| Body | `Inter`, `system-ui`, sans-serif | Standardized developer UI font with balanced spacing |
+| Monospace | `JetBrains Mono`, `ui-monospace`, monospace | Crisp formatting for code snippets, prompt context, and tool tags |
 
 ### Typography Scale
-- **Page Title:** 24px / Semibold (`text-2xl font-bold tracking-tight text-slate-900`)
-- **Column Header:** 15px / Semibold (`text-sm font-semibold tracking-wide text-slate-800`)
-- **Card Title:** 14px / Medium (`text-sm font-medium text-slate-900`)
-- **Body / Context:** 13px–14px / Regular (`text-sm text-slate-600 leading-relaxed`)
-- **Badges & Dates:** 11px–12px / Medium (`text-xs font-medium`)
+- **Page Title:** 22px / Semibold (`text-xl font-bold tracking-tight text-[#dfe1e5]`)
+- **Column Header:** 13px / Semibold uppercase (`text-xs font-semibold tracking-wider text-[#868a91]`)
+- **Card Title:** 14px / Medium (`text-sm font-medium text-[#dfe1e5]`)
+- **Body / Context:** 13px / Regular (`text-xs text-[#868a91] leading-relaxed`)
+- **Badges & Dates:** 11px / Medium (`text-[11px] font-medium`)
 
 ---
 
 ## 4. Component Principles
 
-- **Columns:** Large, friendly, translucent containers (`rounded-3xl bg-white/65 backdrop-blur-md border border-white/60 shadow-sm p-4`).
-- **Cards:** Crisp floating white surfaces with generous curvature (`rounded-2xl bg-white p-4 shadow-sm hover:shadow-md transition-shadow border border-slate-100`).
-- **Pill Badges:** Fully rounded capsules (`rounded-full px-2.5 py-0.5 text-xs font-medium`).
-- **Buttons:** Tactile pill-shaped or soft-rounded controls (`rounded-full` or `rounded-xl`, generous padding, smooth hover transition).
-- **Modal:** Centered floating dialog (`rounded-3xl bg-white/95 backdrop-blur-lg border border-slate-200/80 shadow-2xl p-6 max-w-lg`).
-- **Anchor Board:** Pinned glassmorphic ribbon above the Kanban board for quick access to deliverables.
-- **Empty States:** Friendly translucent card with dashed border, warm muted text (`rounded-2xl border-2 border-dashed border-slate-300/80 p-6 text-center text-slate-400 text-sm`).
-- **Drag Affordance (if used):** Lightweight drag-and-drop handles paired with fallback status select dropdowns in the task modal for quick one-click column transitions.
+- **Columns:** Structured, dark panel containers (`rounded-xl bg-[#25272b] border border-[#393b40] p-3`).
+- **Cards:** Crisp dark tiles with subtle borders (`rounded-lg bg-[#2b2d30] border border-[#393b40] p-3.5 hover:border-[#4e5157] hover:bg-[#323438] transition-colors`).
+- **Pill Badges:** Compact utilitarian capsules with dark translucent backgrounds (`rounded-full px-2 py-0.5 text-[11px] font-medium border border-current/20`).
+- **Buttons:** Utilitarian solid or ghost controls with sharp 6px–8px radius (`rounded-md px-3 py-1.5 text-xs font-medium transition-colors`).
+- **Modal:** Elevated dark dialog (`rounded-xl bg-[#25272b] border border-[#43454a] shadow-2xl p-6 max-w-lg`).
+- **Anchor Board:** Pinned dark toolbar above the Kanban board for quick access to deliverables.
+- **Empty States:** Subtle dashed outline with muted caption (`rounded-lg border border-dashed border-[#393b40] p-6 text-center text-[#868a91] text-xs`).
+- **Drag Affordance (if used):** Lightweight drag handles with fallback status select dropdowns in the task modal for quick one-click column transitions.
 
 ---
 
@@ -89,17 +122,17 @@ These design tokens provide high visual contrast (WCAG AA compliant) across fros
 | Where | Text |
 |---|---|
 | "+" button label | `+ Add Task` |
-| Empty column placeholder | `No tasks in this stage yet · Ready for the next vibe` |
-| Toast after "Copy as Prompt Context" | `Prompt context copied to clipboard! Ready to paste into AI.` |
-| Confirm-delete message | `Delete this task? Prompt history and context will be permanently lost.` |
-| Handoff toast (M7 `task-owner`) | `Handed off to {name}. Context is in their hands.` |
+| Empty column placeholder | `No tasks in this stage yet` |
+| Toast after "Copy as Prompt Context" | `Prompt context copied to clipboard` |
+| Confirm-delete message | `Deleting this task will PERMENANTLY delete all context and history` |
+| Handoff toast (M7 `task-owner`) | `Handed off to {name}. Make sure they have necessary context.` |
 
 ---
 
 ## 6. Logo / Wordmark
 
 - **Product Name:** **VibeTracker**
-- **Wordmark Style:** Clean bold sans-serif with a warm gradient accent dot: `VibeTracker` (`text-slate-900 font-extrabold`).
+- **Wordmark Style:** Clean bold sans-serif with a cold gradient accent dot: `VibeTracker` (`text-[#dfe1e5] font-extrabold`).
 
 ---
 
@@ -107,7 +140,7 @@ These design tokens provide high visual contrast (WCAG AA compliant) across fros
 
 To maintain focus and high build quality during the hackathon, the following are explicitly out of scope for design:
 
-- Dark mode toggle (shipping a polished, warm translucent light mode).
-- Multiple themes (one cohesive brand applied consistently).
-- Complex physics-based animations (limiting motion to smooth 200 ms hover transitions and toast fades).
+- Light mode toggle (shipping a polished, utilitarian dark mode as the default experience).
+- Multiple themes (one cohesive JetBrains/GitLab dark palette applied consistently).
+- Complex physics-based animations (limiting motion to snappy 150ms transitions and toast alerts).
 - Custom icon set (utilizing standard SVG icons / Lucide icon shapes).
