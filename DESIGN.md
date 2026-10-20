@@ -11,12 +11,12 @@
 ### Visual References
 The images saved in the workspace define the visual language:
 
-- **Reference 1 (`image-1.png` — Primary Layout & Style):** Warm radiant amber-to-lime ambient gradient canvas, translucent frosted-white column containers (`rounded-3xl` with `backdrop-filter: blur`), floating crisp white task cards (`rounded-2xl`), and vibrant pill badges.
-- **Reference 2 (`image-2.png` — Urgency & Status Tinting):** High-visibility column and card emphasis for urgent or active states (e.g., terracotta/coral tinted active columns, status borders, and distinct category pills).
-- **Reference 3 (`image.png` — High Contrast & Tactile Controls):** Rich contrasting surface layers with glowing accents, clear typographic hierarchy, and smooth rounded action buttons.
+- **Reference 1 (![alt text](image-4.png) — Primary Layout & Style):** Warm radiant amber-to-lime ambient gradient canvas, translucent frosted-white column containers (`rounded-3xl` with `backdrop-filter: blur`), floating crisp white task cards (`rounded-2xl`), and vibrant pill badges.
+- **Reference 2 (![alt text](image-5.png) — Urgency & Status Tinting):** High-visibility column and card emphasis for urgent or active states (e.g., terracotta/coral tinted active columns, status borders, and distinct category pills).
+- **Reference 3 (![alt text](image-6.png) — High Contrast & Tactile Controls):** Rich contrasting surface layers with glowing accents, clear typographic hierarchy, and smooth rounded action buttons.
 
 ### Anti-references (What we explicitly avoid)
-- **Anti-Reference (`image-3.png`):** Rigid, square-cornered, grey-bordered enterprise issue tracking boards (e.g., legacy GitLab/Jira) with dense, sterile, and uninviting layouts.
+- **Anti-Reference (![alt text](image-7.png)):** Rigid, square-cornered, grey-bordered enterprise issue tracking boards (e.g., legacy GitLab/Jira) with dense, sterile, and uninviting layouts.
 
 ---
 
