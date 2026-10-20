@@ -1,114 +1,113 @@
 # Vibecoding Project Tracker — Design
 
-**Status:** Hackathon starter design doc · fill in the **`<TODO>`** sections before you tag `design-done`.
-
-**Why this file exists.** This tracker is your tool. It should look like *your* tool — not a generic Kanban with default Tailwind blue. Twenty minutes of design decisions here will be visible on every screen for the next six weeks of Module 5.
-
-**Who owns this.** Person B, during the same window the rest of the team is reviewing the PRD. By the time the team converges to start M4 (`data-model`), this file should be filled in and the colors should already be in `tailwind.config.js`.
+**Status:** Design doc finalized · matches the translucent, warm-gradient & hyper-rounded UI aesthetic from design references.
 
 ---
 
 ## 1. Mood / vibe
 
-One sentence that captures the feeling the tracker should leave you with.
+**One sentence:** A warm, luminous, and tactile workspace featuring frosted-glass column surfaces, radiant ambient gradients, and hyper-rounded pill components that make tracking agile vibecoding tasks feel delightful, clear, and effortless.
 
-`<TODO>`
+### Visual References
+The images saved in the workspace define the visual language:
 
-Two or three references that capture the vibe (links to dribbble shots, screenshots of apps you admire, Pinterest boards — anything visual):
+- **Reference 1 (`image-1.png` — Primary Layout & Style):** Warm radiant amber-to-lime ambient gradient canvas, translucent frosted-white column containers (`rounded-3xl` with `backdrop-filter: blur`), floating crisp white task cards (`rounded-2xl`), and vibrant pill badges.
+- **Reference 2 (`image-2.png` — Urgency & Status Tinting):** High-visibility column and card emphasis for urgent or active states (e.g., terracotta/coral tinted active columns, status borders, and distinct category pills).
+- **Reference 3 (`image.png` — High Contrast & Tactile Controls):** Rich contrasting surface layers with glowing accents, clear typographic hierarchy, and smooth rounded action buttons.
 
-- `<TODO>`
-- `<TODO>`
-- `<TODO>`
+### Anti-references (What we explicitly avoid)
+- **Anti-Reference (`image-3.png`):** Rigid, square-cornered, grey-bordered enterprise issue tracking boards (e.g., legacy GitLab/Jira) with dense, sterile, and uninviting layouts.
 
-Anti-references — what we are explicitly **not** trying to look like:
-
-- `<TODO>`
+---
 
 ## 2. Color palette
 
-These are the colors the build milestones will reference. Once chosen, paste the hex values into `tailwind.config.js` so the rest of the team can use Tailwind utility classes (e.g. `bg-brand-primary`, `border-due-warning`).
+These design tokens provide high visual contrast (WCAG AA compliant) across frosted glass and glowing background layers.
 
-### Brand
+### Brand & Surfaces
 
-| Token | Hex | Where it shows up |
+| Token | Hex / Value | Where it shows up |
 |---|---|---|
-| `brand-primary` | `<TODO>` | Header, "+" button, focus rings |
-| `brand-accent` | `<TODO>` | Highlights, hover states, links |
-| `surface-page` | `<TODO>` | Page background |
-| `surface-card` | `<TODO>` | Card background |
-| `text-primary` | `<TODO>` | Body text |
-| `text-muted` | `<TODO>` | Captions, dates, counts |
+| `brand-primary` | `#0f172a` | Headers, primary action buttons, active borders |
+| `brand-accent` | `#f97316` | Warm radiant amber/orange highlights, active indicators, focus rings |
+| `surface-page` | `#fef9ee` | Base page canvas (paired with ambient gradient: amber-100 to lime-100) |
+| `surface-column` | `rgba(255, 255, 255, 0.65)` | Translucent frosted Kanban column containers (`backdrop-blur-md`) |
+| `surface-card` | `#ffffff` | Floating task cards, modal backgrounds, input fields |
+| `text-primary` | `#0f172a` | Main task titles, modal headings, primary body copy |
+| `text-muted` | `#64748b` | Dates, stage counters, secondary captions, placeholders |
 
-### Task type (M6 `tag-style`)
+### Task Type (M6 `tag-style`)
 
 | Token | Hex | When used |
 |---|---|---|
-| `type-feature` | `<TODO>` | Cards tagged `feature` (accent stripe + icon) |
-| `type-bug` | `<TODO>` | Cards tagged `bug` (accent stripe + icon) |
+| `type-feature` | `#10b981` | Emerald green pill badge & accent stripe for `feature` tasks |
+| `type-bug` | `#ef4444` | Vivid crimson/coral pill badge & alert accent for `bug` tasks |
 
-### Due-date states (M8 `due-tint`)
+### Due-Date States (M8 `due-tint`)
 
 | Token | Hex | When used |
 |---|---|---|
-| `due-safe` | `<TODO>` | More than 2 days out |
-| `due-warning` | `<TODO>` | Less than 24 hours |
-| `due-overdue` | `<TODO>` | Past due |
-| `due-neutral` | `<TODO>` | Done (overrides date) |
+| `due-safe` | `#10b981` | Calm emerald green (deadline > 2 days away) |
+| `due-warning` | `#f59e0b` | Amber warning (deadline within 24 hours) |
+| `due-overdue` | `#dc2626` | Urgent red/crimson alert (past deadline) |
+| `due-neutral` | `#94a3b8` | Muted slate gray (completed / done tasks) |
+
+---
 
 ## 3. Typography
 
 | Role | Font | Why |
 |---|---|---|
-| Heading | `<TODO>` | `<TODO one sentence>` |
-| Body | `<TODO>` | `<TODO one sentence>` |
-| Monospace (tags, badges, code) | `<TODO>` | `<TODO one sentence>` |
+| Heading | `Plus Jakarta Sans`, `system-ui`, sans-serif | Modern, geometric, friendly curves matching rounded surfaces |
+| Body | `Inter`, `system-ui`, sans-serif | High legibility and neutral proportions across small card sizes |
+| Monospace | `JetBrains Mono`, `ui-monospace`, monospace | Crisp formatting for code snippets, prompts, and tool tags |
 
-Suggested sizes (override only if the design demands it):
-
-- Page title: 24 px / semibold
-- Section header: 16 px / semibold uppercase
-- Card title: 14 px / medium
-- Body: 14 px / regular
-- Caption: 12 px / regular muted
-
-## 4. Component principles
-
-One short sentence per element. These set the tone for the build phase — Person A's modal and Person B's anchor board should both feel like they came from this doc.
-
-- **Cards:** `<TODO>` (e.g. "Light, almost weightless; the only weight is from a 1px border, no shadow except on hover.")
-- **Buttons:** `<TODO>` (e.g. "Solid fill, no gradient, generous padding, rounded-md.")
-- **Modal:** `<TODO>` (e.g. "Centered, max-width-md, slate-900 backdrop at 50% opacity.")
-- **Empty states:** `<TODO>` (e.g. "Dashed border, muted text, never sad.")
-- **Drag affordance (if used):** `<TODO>` (e.g. "None — we use a status dropdown.")
-
-## 5. Voice / microcopy
-
-Three lines of microcopy that capture the tone of the product. Keep it short — these are the words a stressed user reads at 11pm.
-
-| Where | Text |
-|---|---|
-| "+" button label | `<TODO>` (e.g. "+ Task" or "Add task" or "New") |
-| Empty column placeholder | `<TODO>` (e.g. "Nothing here yet — keep going.") |
-| Toast after "Copy as Prompt Context" | `<TODO>` (e.g. "Copied. Now paste it into the AI.") |
-| Confirm-delete message | `<TODO>` (e.g. "Delete this task? You can't undo.") |
-| Handoff toast (M7 `task-owner`) | `<TODO>` (e.g. "Handed off to {name}. They've got it.") |
-
-## 6. Logo / wordmark
-
-The tracker probably doesn't need a logo, but it does need a name and a wordmark style.
-
-- **Product name:** `<TODO>` (match PRD §11 team identity)
-- **Wordmark style:** `<TODO>` (e.g. "Just the name in the heading font, brand-primary color, no icon.")
-
-## 7. Out of scope (this hackathon)
-
-To keep design tight, the following are explicitly not part of `design-done`:
-
-- A dark mode toggle. Pick one mode and ship it.
-- Multiple themes. One brand, applied consistently.
-- Animations beyond a 200 ms fade on toast notifications.
-- A custom icon set. Use [Lucide icons](https://lucide.dev) via Tailwind classes if you need any.
+### Typography Scale
+- **Page Title:** 24px / Semibold (`text-2xl font-bold tracking-tight text-slate-900`)
+- **Column Header:** 15px / Semibold (`text-sm font-semibold tracking-wide text-slate-800`)
+- **Card Title:** 14px / Medium (`text-sm font-medium text-slate-900`)
+- **Body / Context:** 13px–14px / Regular (`text-sm text-slate-600 leading-relaxed`)
+- **Badges & Dates:** 11px–12px / Medium (`text-xs font-medium`)
 
 ---
 
-*DESIGN.md version: hackathon-starter v1*
+## 4. Component Principles
+
+- **Columns:** Large, friendly, translucent containers (`rounded-3xl bg-white/65 backdrop-blur-md border border-white/60 shadow-sm p-4`).
+- **Cards:** Crisp floating white surfaces with generous curvature (`rounded-2xl bg-white p-4 shadow-sm hover:shadow-md transition-shadow border border-slate-100`).
+- **Pill Badges:** Fully rounded capsules (`rounded-full px-2.5 py-0.5 text-xs font-medium`).
+- **Buttons:** Tactile pill-shaped or soft-rounded controls (`rounded-full` or `rounded-xl`, generous padding, smooth hover transition).
+- **Modal:** Centered floating dialog (`rounded-3xl bg-white/95 backdrop-blur-lg border border-slate-200/80 shadow-2xl p-6 max-w-lg`).
+- **Anchor Board:** Pinned glassmorphic ribbon above the Kanban board for quick access to deliverables.
+- **Empty States:** Friendly translucent card with dashed border, warm muted text (`rounded-2xl border-2 border-dashed border-slate-300/80 p-6 text-center text-slate-400 text-sm`).
+- **Drag Affordance (if used):** Lightweight drag-and-drop handles paired with fallback status select dropdowns in the task modal for quick one-click column transitions.
+
+---
+
+## 5. Voice / microcopy
+
+| Where | Text |
+|---|---|
+| "+" button label | `+ Add Task` |
+| Empty column placeholder | `No tasks in this stage yet · Ready for the next vibe` |
+| Toast after "Copy as Prompt Context" | `Prompt context copied to clipboard! Ready to paste into AI.` |
+| Confirm-delete message | `Delete this task? Prompt history and context will be permanently lost.` |
+| Handoff toast (M7 `task-owner`) | `Handed off to {name}. Context is in their hands.` |
+
+---
+
+## 6. Logo / Wordmark
+
+- **Product Name:** **VibeTracker**
+- **Wordmark Style:** Clean bold sans-serif with a warm gradient accent dot: `VibeTracker` (`text-slate-900 font-extrabold`).
+
+---
+
+## 7. Out of Scope (This Hackathon)
+
+To maintain focus and high build quality during the hackathon, the following are explicitly out of scope for design:
+
+- Dark mode toggle (shipping a polished, warm translucent light mode).
+- Multiple themes (one cohesive brand applied consistently).
+- Complex physics-based animations (limiting motion to smooth 200 ms hover transitions and toast fades).
+- Custom icon set (utilizing standard SVG icons / Lucide icon shapes).
