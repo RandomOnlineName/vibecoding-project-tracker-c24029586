@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-
+import { useState, useEffect, useCallback } from 'react';
+ 
 /**
  * Vibecoding Project Tracker — starter scaffold.
  *
@@ -20,7 +20,7 @@ import { useState, useEffect } from 'react';
  *
  * Search the file for `TODO M<n>` to find the right hook for each milestone.
  */
-
+ 
 /**
  * @typedef {Object} Task
  * @property {string} id
@@ -32,7 +32,7 @@ import { useState, useEffect } from 'react';
  * @property {string|null} dueDate     ISO 'YYYY-MM-DD'
  * @property {string} createdDate      ISO 'YYYY-MM-DD'
  */
-
+ 
 // The four columns of the board, in render order.
 // Use these IDs everywhere — do not invent new ones.
 export const STAGES = [
@@ -41,11 +41,11 @@ export const STAGES = [
   { id: 'review',      label: 'Review' },
   { id: 'done',        label: 'Done' },
 ];
-
+ 
 // Replace these placeholders with the three names from PRD §8 before M4.
 // They become the only valid values for `Task.assignee`.
 export const TEAM = ['Teammate A', 'Teammate B', 'Teammate C'];
-
+ 
 /**
  * A tiny localStorage hook — survives reloads, no library needed.
  *
@@ -61,7 +61,7 @@ export function useLocalStorage(key, initialValue) {
       return initialValue;
     }
   });
-
+ 
   useEffect(() => {
     try {
       window.localStorage.setItem(key, JSON.stringify(value));
@@ -69,20 +69,135 @@ export function useLocalStorage(key, initialValue) {
       /* quota or private-mode error — silently ignore for hackathon */
     }
   }, [key, value]);
-
+ 
   return [value, setValue];
 }
-
+ 
+/**
+ * Tiny fetch wrapper for the MariaDB-backed API (server/index.js).
+ * Vite proxies /api -> http://localhost:3001 in dev (see vite.config.js).
+ */
+async function api(path, options = {}) {
+  const res = await fetch(`/api${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+  });
+  if (!res.ok) {
+    let msg = `${res.status} ${res.statusText}`;
+    try {
+      msg = (await res.json()).error || msg;
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new Error(msg);
+  }
+  return res.status === 204 ? null : res.json();
+}
+ 
+/**
+ * Tasks persisted in MariaDB.
+ *
+ * Usage:
+ *   const { tasks, loading, error, addTask, updateTask, deleteTask } = useTasks();
+ *
+ * Updates are applied optimistically and rolled back if the server rejects them.
+ */
+export function useTasks() {
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+ 
+  const refresh = useCallback(async () => {
+    try {
+      setTasks(await api('/tasks'));
+      setError(null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+ 
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+ 
+  const addTask = useCallback(async (task) => {
+    const created = await api('/tasks', { method: 'POST', body: task });
+    setTasks((prev) => [...prev, created]);
+    return created;
+  }, []);
+ 
+  const updateTask = useCallback(async (id, patch) => {
+    let previous;
+    setTasks((prev) => {
+      previous = prev;
+      return prev.map((t) => (t.id === id ? { ...t, ...patch } : t));
+    });
+    try {
+      const saved = await api(`/tasks/${id}`, { method: 'PUT', body: patch });
+      setTasks((prev) => prev.map((t) => (t.id === id ? saved : t)));
+      return saved;
+    } catch (e) {
+      setTasks(previous);
+      throw e;
+    }
+  }, []);
+ 
+  const deleteTask = useCallback(async (id) => {
+    let previous;
+    setTasks((prev) => {
+      previous = prev;
+      return prev.filter((t) => t.id !== id);
+    });
+    try {
+      await api(`/tasks/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      setTasks(previous);
+      throw e;
+    }
+  }, []);
+ 
+  return { tasks, loading, error, refresh, addTask, updateTask, deleteTask };
+}
+ 
+/**
+ * The four Anchor Board slots persisted in MariaDB.
+ *   const { anchors, setAnchorUrl } = useAnchors();
+ */
+export function useAnchors() {
+  const [anchors, setAnchors] = useState([]);
+  const [error, setError] = useState(null);
+ 
+  useEffect(() => {
+    api('/anchors').then(setAnchors).catch((e) => setError(e.message));
+  }, []);
+ 
+  const setAnchorUrl = useCallback(async (id, url) => {
+    const saved = await api(`/anchors/${id}`, { method: 'PUT', body: { url } });
+    setAnchors((prev) => prev.map((a) => (a.id === id ? saved : a)));
+    return saved;
+  }, []);
+ 
+  return { anchors, error, setAnchorUrl };
+}
+ 
 export default function App() {
+  // Data now lives in MariaDB via the API (see server/). Use these in M4+:
+  const { tasks, loading, error } = useTasks();
+  //
   // TODO M4 data-model:
-  //   const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', [/* 3-4 seed tasks */]);
+  //   Render `tasks` in the four columns. Seed 3-4 tasks by POSTing them (addTask)
+  //   or by inserting rows into the `tasks` table.
   //
   // TODO M5 crud-modal:
   //   const [editing, setEditing] = useState(null);
+  //   Save with addTask(...) / updateTask(id, patch); remove with deleteTask(id).
   //
   // TODO M11 anchors:
-  //   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', [...]);
-
+  //   const { anchors, setAnchorUrl } = useAnchors();
+ 
   return (
     <div className="min-h-screen p-6">
       <header className="mb-6 flex items-end justify-between">
@@ -96,21 +211,29 @@ export default function App() {
           </p>
         </div>
       </header>
-
+ 
       {/* TODO M11 anchors: render the Anchor Board (Presentation / Demo / Report / Documentation) above the board. */}
-
+ 
       {/*
         TODO M4 data-model:
           Render a Kanban board with the four columns from STAGES.
           Each column should display the tasks whose status matches its id.
           Pre-populate 3-4 mock tasks so the board isn't empty on first load.
-
+ 
         TODO M5 crud-modal:
           Add a "+" button that opens a modal with every Task field.
           Clicking a card should open the same modal in edit mode.
       */}
+      {error && (
+        <div className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+          Can't reach the database API: {error}. Is the server running (<code>npm run server</code>)
+          and MariaDB up?
+        </div>
+      )}
       <main className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-slate-400">
-        Build the four-column board here · M4
+        {loading
+          ? 'Loading tasks…'
+          : `Build the four-column board here · M4 (${tasks.length} tasks in MariaDB)`}
       </main>
     </div>
   );
