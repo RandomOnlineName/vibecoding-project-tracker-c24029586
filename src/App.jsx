@@ -5,6 +5,10 @@ import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import TeamDashboard from './pages/TeamDashboard.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
+<<<<<<< HEAD
+=======
+import DeliverablesPinnedBoard from './components/DeliverablesPinnedBoard.jsx';
+>>>>>>> f13340f (context)
 
 /**
  * Vibecoding Project Tracker
@@ -28,6 +32,7 @@ import ProfilePage from './pages/ProfilePage.jsx';
  * @property {string} [context]
  * @property {string|null} [contextTool]
  * @property {string|null} [contextUpdatedAt]
+ * @property {string} [promptHistory]
  */
 
 // The four columns of the board, in render order.
@@ -267,27 +272,41 @@ export function TaskCard({ task, onClick }) {
             <span className="truncate max-w-[100px]">{task.assignee || 'Unassigned'}</span>
           </div>
 
-          {task.context && (
-            <span
-              className="inline-flex items-center gap-1 text-[11px] text-brand-accent font-medium font-mono"
-              title="Has documentation / prompt context"
-            >
-              <svg
-                className="w-3 h-3"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          <div className="flex items-center gap-2">
+            {task.context && (
+              <span
+                className="inline-flex items-center gap-1 text-[11px] text-brand-accent font-medium font-mono"
+                title="Has documentation / prompt context"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                />
-              </svg>
-              {task.contextTool || 'Context'} ({task.context.length > 999 ? `${Math.round(task.context.length / 1024)}k` : task.context.length})
-            </span>
-          )}
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                  />
+                </svg>
+                {task.contextTool || 'Context'} ({task.context.length > 999 ? `${Math.round(task.context.length / 1024)}k` : task.context.length})
+              </span>
+            )}
+
+            {task.promptHistory && (
+              <span
+                className="inline-flex items-center gap-1 text-[11px] text-purple-400 font-medium font-mono"
+                title="Has prompt history log"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Prompts ({task.promptHistory.length > 999 ? `${Math.round(task.promptHistory.length / 1024)}k` : task.promptHistory.length})
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Urgency / Deadline Stripe near the bottom of the card */}
@@ -371,10 +390,16 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
     dueDate: task?.dueDate || '',
     context: task?.context || '',
     contextTool: task?.contextTool || 'Claude',
+    promptHistory: task?.promptHistory || '',
   });
 
+  const [activeTab, setActiveTab] = useState('both'); // 'both' | 'context' | 'history'
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [copyToast, setCopyToast] = useState(false);
+  const [copyHistoryToast, setCopyHistoryToast] = useState(false);
+  const [quickPromptText, setQuickPromptText] = useState('');
+  const [quickPromptTool, setQuickPromptTool] = useState(task?.contextTool || 'Claude');
+  const [showQuickPromptBox, setShowQuickPromptBox] = useState(false);
 
   const currentSignificance = getTaskSignificance({
     dueDate: form.dueDate,
@@ -403,6 +428,7 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
       title: form.title.trim(),
       dueDate: form.dueDate || null,
       contextUpdatedAt: form.context ? new Date().toISOString() : null,
+      promptHistory: form.promptHistory || '',
     });
   };
 
@@ -415,6 +441,32 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
     } catch {
       /* fallback */
     }
+  };
+
+  const handleCopyPromptHistory = async () => {
+    if (!form.promptHistory) return;
+    try {
+      await navigator.clipboard.writeText(form.promptHistory);
+      setCopyHistoryToast(true);
+      setTimeout(() => setCopyHistoryToast(false), 2500);
+    } catch {
+      /* fallback */
+    }
+  };
+
+  const handleAppendPrompt = (e) => {
+    if (e) e.preventDefault();
+    if (!quickPromptText.trim()) return;
+    const now = new Date();
+    const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const separator = form.promptHistory.trim() ? '\n\n---\n\n' : '';
+    const entry = `${separator}### [${timeStr}] ${quickPromptTool}\n${quickPromptText.trim()}`;
+    setForm(prev => ({
+      ...prev,
+      promptHistory: (prev.promptHistory || '') + entry,
+    }));
+    setQuickPromptText('');
+    setShowQuickPromptBox(false);
   };
 
   const handleDelete = () => {
@@ -511,60 +563,240 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
               />
             </div>
 
-            {/* LLM Context Window (Prompts, Logs, Stacktraces, Documentation) */}
-            <div className="space-y-2 pt-2">
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-brand-accent flex items-center gap-1.5">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                      />
-                    </svg>
-                    <span>LLM Context Window</span>
-                  </label>
-                  <span className="text-[11px] font-mono text-text-muted bg-surface-column px-2 py-0.5 rounded border border-border-subtle">
-                    {form.context.length.toLocaleString()} characters
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
+            {/* Tab Navigation for Context vs Prompt History */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3 pt-2">
+              <div className="flex items-center gap-1 bg-surface-column p-1 rounded-lg border border-border-subtle text-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('both')}
+                  className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                    activeTab === 'both'
+                      ? 'bg-brand-primary text-white shadow-sm'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  Stacked View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('context')}
+                  className={`px-3 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+                    activeTab === 'context'
+                      ? 'bg-brand-primary text-white shadow-sm'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-accent" />
+                  <span>AI Context Window</span>
                   {form.context && (
-                    <button
-                      type="button"
-                      onClick={handleCopyContext}
-                      className="px-2.5 py-1 rounded text-xs font-mono text-brand-accent hover:text-white bg-brand-accent/10 hover:bg-brand-accent/20 border border-brand-accent/30 transition-colors flex items-center gap-1.5"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span className="text-[10px] font-mono opacity-80">
+                      ({form.context.length > 999 ? `${Math.round(form.context.length / 1024)}k` : form.context.length})
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('history')}
+                  className={`px-3 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+                    activeTab === 'history'
+                      ? 'bg-brand-primary text-white shadow-sm'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                  <span>Prompt History Box</span>
+                  {form.promptHistory && (
+                    <span className="text-[10px] font-mono opacity-80">
+                      ({form.promptHistory.length > 999 ? `${Math.round(form.promptHistory.length / 1024)}k` : form.promptHistory.length})
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <div className="text-[11px] font-mono text-text-muted hidden md:flex items-center gap-2">
+                <span>Markdown & code blocks supported</span>
+              </div>
+            </div>
+
+            {/* LLM Context Window (Briefing, Logs, Stacktraces, Documentation) */}
+            {(activeTab === 'both' || activeTab === 'context') && (
+              <div className="space-y-2 pt-2 border-t border-border-subtle/50 first:border-0 first:pt-0">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-brand-accent flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth="2"
-                          d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                          d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
                         />
                       </svg>
-                      <span>{copyToast ? 'Copied to Clipboard!' : 'Copy Context'}</span>
-                    </button>
-                  )}
-                </div>
-              </div>
+                      <span>AI Context Window (Briefing & Knowledge)</span>
+                    </label>
+                    <span className="text-[11px] font-mono text-text-muted bg-surface-column px-2 py-0.5 rounded border border-border-subtle">
+                      {form.context.length.toLocaleString()} chars
+                    </span>
+                  </div>
 
-              <div className="relative">
-                <textarea
-                  rows={16}
-                  placeholder={`Paste full system prompts, API documentation, terminal logs, or error stacktraces here...\n\nExample:\n// Context for AI assistant:\nFix the SQL connection pooling issue in server/index.js.\nStacktrace:\nError: ER_ACCESS_DENIED_ERROR: Access denied for user 'vibetracker'@'localhost'`}
-                  value={form.context}
-                  onChange={(e) => setForm({ ...form, context: e.target.value })}
-                  className="w-full bg-[#121316] font-mono text-xs text-[#a9b7c6] border border-border-subtle rounded-xl p-4 placeholder:text-text-muted/40 focus:outline-none focus:border-brand-accent leading-relaxed resize-y min-h-[350px] selection:bg-brand-primary selection:text-white"
-                />
+                  <div className="flex items-center gap-2">
+                    {form.context && (
+                      <button
+                        type="button"
+                        onClick={handleCopyContext}
+                        className="px-2.5 py-1 rounded text-xs font-mono text-brand-accent hover:text-white bg-brand-accent/10 hover:bg-brand-accent/20 border border-brand-accent/30 transition-colors flex items-center gap-1.5"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                          />
+                        </svg>
+                        <span>{copyToast ? 'Copied to Clipboard!' : 'Copy Context'}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <textarea
+                    rows={activeTab === 'both' ? 10 : 18}
+                    placeholder={`Paste background system context, architectural notes, API schemas, or error stacktraces here...\n\nExample:\n// Context for AI assistant:\nFix the SQL connection pooling issue in server/index.js.\nStacktrace:\nError: ER_ACCESS_DENIED_ERROR: Access denied for user 'vibetracker'@'localhost'`}
+                    value={form.context}
+                    onChange={(e) => setForm({ ...form, context: e.target.value })}
+                    className="w-full bg-[#121316] font-mono text-xs text-[#a9b7c6] border border-border-subtle rounded-xl p-4 placeholder:text-text-muted/40 focus:outline-none focus:border-brand-accent leading-relaxed resize-y selection:bg-brand-primary selection:text-white"
+                  />
+                </div>
+                <p className="text-[11px] text-text-muted leading-relaxed">
+                  Context briefing buffer. Persisted in MariaDB MEDIUMTEXT for AI prompt generation and task handoffs.
+                </p>
               </div>
-              <p className="text-[11px] text-text-muted leading-relaxed">
-                Dedicated buffer for expansive context briefings. Persisted in MariaDB MEDIUMTEXT to support comprehensive logs, code snippets, and prompt histories.
-              </p>
-            </div>
+            )}
+
+            {/* Prompt History Box (Prompts Used while working on the problem) */}
+            {(activeTab === 'both' || activeTab === 'history') && (
+              <div className="space-y-3 pt-3 border-t border-border-subtle/80">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span>Prompt History Box (Prompts Used)</span>
+                    </label>
+                    <span className="text-[11px] font-mono text-purple-300/80 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded">
+                      {form.promptHistory.length.toLocaleString()} chars
+                    </span>
+                    {form.promptHistory && (
+                      <span className="text-[10px] font-mono text-text-muted">
+                        ~{(form.promptHistory.match(/### \[/g) || [1]).length} entry/entries
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowQuickPromptBox(!showQuickPromptBox)}
+                      className="px-2.5 py-1 rounded text-xs font-mono text-purple-300 hover:text-white bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 transition-colors flex items-center gap-1"
+                    >
+                      <span>+</span>
+                      <span>{showQuickPromptBox ? 'Close Quick Entry' : 'Quick Append'}</span>
+                    </button>
+
+                    {form.promptHistory && (
+                      <button
+                        type="button"
+                        onClick={handleCopyPromptHistory}
+                        className="px-2.5 py-1 rounded text-xs font-mono text-purple-300 hover:text-white bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 transition-colors flex items-center gap-1.5"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                          />
+                        </svg>
+                        <span>{copyHistoryToast ? 'Prompts Copied!' : 'Copy All Prompts'}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick Append Panel */}
+                {showQuickPromptBox && (
+                  <div className="bg-surface-column border border-purple-500/30 rounded-xl p-3.5 space-y-3 animate-fade-in shadow-md">
+                    <div className="flex items-center justify-between text-xs text-text-primary font-medium">
+                      <span className="flex items-center gap-1.5 text-purple-300">
+                        <span>⚡</span>
+                        <span>Append Prompt to History Log</span>
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <label className="text-[11px] text-text-muted font-normal">Tool:</label>
+                        <select
+                          value={quickPromptTool}
+                          onChange={(e) => setQuickPromptTool(e.target.value)}
+                          className="bg-surface-card border border-border-subtle rounded px-2 py-0.5 text-xs text-text-primary focus:outline-none focus:border-brand-primary"
+                        >
+                          {AI_TOOLS.map((tool) => (
+                            <option key={tool} value={tool}>{tool}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <textarea
+                      rows={3}
+                      autoFocus
+                      placeholder="Paste the prompt you just sent to the AI assistant..."
+                      value={quickPromptText}
+                      onChange={(e) => setQuickPromptText(e.target.value)}
+                      className="w-full bg-[#121316] font-mono text-xs text-text-primary border border-border-subtle rounded-lg p-2.5 focus:outline-none focus:border-purple-400 placeholder:text-text-muted/40"
+                    />
+
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowQuickPromptBox(false)}
+                        className="px-3 py-1 rounded text-xs text-text-muted hover:text-text-primary border border-border-subtle"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAppendPrompt}
+                        disabled={!quickPromptText.trim()}
+                        className="px-3.5 py-1 rounded text-xs font-medium bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white shadow-sm transition-colors flex items-center gap-1.5"
+                      >
+                        <span>+ Append to Log</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Direct Prompt History Box Textarea */}
+                <div className="relative">
+                  <textarea
+                    rows={activeTab === 'both' ? 12 : 20}
+                    placeholder={`Paste the prompts you used into this prompt history box while working on the problem...\n\nExample:\n### [2026-10-26 14:15] Claude 3.5 Sonnet\nWrite an Express route to fetch all team members and their roles.\n\n---\n\n### [2026-10-26 14:32] Cursor\nRefactor the query to include joined_at date and order by role.\n\n---\n\n### [2026-10-26 15:05] ChatGPT\nHelp write the SQL migration to add prompt_history mediumtext to the tasks table.`}
+                    value={form.promptHistory}
+                    onChange={(e) => setForm({ ...form, promptHistory: e.target.value })}
+                    className="w-full bg-[#121316] font-mono text-xs text-[#c0caf5] border border-border-subtle rounded-xl p-4 placeholder:text-text-muted/40 focus:outline-none focus:border-purple-400 leading-relaxed resize-y selection:bg-purple-600 selection:text-white"
+                  />
+                </div>
+                <p className="text-[11px] text-text-muted leading-relaxed">
+                  Prompt history log. Type or paste your exact prompts here as you iterate on the problem. Persisted in MariaDB MEDIUMTEXT to build your team audit log and Module 5 Vibe Coding History deliverable.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Properties Sidebar (Col span 4) */}
@@ -802,6 +1034,41 @@ export default function App() {
   }, [token, authLoading, activeTeamId]);
 
   const [activeEditorTask, setActiveEditorTask] = useState(null);
+  const [showDeliverablesPinned, setShowDeliverablesPinned] = useState(true);
+  const [deliverablesStats, setDeliverablesStats] = useState({ ready: 0, completed: 0, total: 5 });
+
+<<<<<<< HEAD
+  // Accept invite handler
+  const [inviteTokenParam] = useState(() => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1]);
+    return params.get('token') || '';
+  });
+  const [acceptingInvite, setAcceptingInvite] = useState(false);
+  const [acceptError, setAcceptError] = useState('');
+  const [acceptSuccess, setAcceptSuccess] = useState('');
+
+=======
+  // Filtering & Sorting State
+  const [filterMyTasksOnly, setFilterMyTasksOnly] = useState(false);
+  const [sortBy, setSortBy] = useState('default'); // 'default' | 'deadline-asc' | 'deadline-desc' | 'created-desc' | 'created-asc'
+
+  const handleDeliverablesStatsChange = useCallback((stats) => {
+    setDeliverablesStats(prev => {
+      if (prev.ready === stats.ready && prev.completed === stats.completed && prev.total === stats.total) {
+        return prev;
+      }
+      return stats;
+    });
+  }, []);
+
+  const isTeamCreator = Boolean(
+    teamDetail?.role === 'owner' ||
+    activeTeam?.role === 'owner' ||
+    (activeTeam?.createdBy && activeTeam.createdBy === user?.id)
+  );
+
+  const creatorMember = teamDetail?.members?.find(m => m.role === 'owner');
+  const creatorName = creatorMember?.name || (isTeamCreator ? user?.name : 'Team Creator');
 
   // Accept invite handler
   const [inviteTokenParam] = useState(() => {
@@ -812,6 +1079,7 @@ export default function App() {
   const [acceptError, setAcceptError] = useState('');
   const [acceptSuccess, setAcceptSuccess] = useState('');
 
+>>>>>>> f13340f (context)
   async function handleAcceptInviteSubmit() {
     if (!inviteTokenParam) return;
     setAcceptingInvite(true);
@@ -937,6 +1205,45 @@ export default function App() {
 
   const teamMembersList = teamDetail?.members?.map(m => m.name) || [user?.name || 'Alex'];
 
+<<<<<<< HEAD
+=======
+  // Filter & Sort tasks
+  const displayedTasks = tasks
+    .filter(task => {
+      if (filterMyTasksOnly) {
+        const myName = (user?.name || '').trim().toLowerCase();
+        const assignee = (task.assignee || '').trim().toLowerCase();
+        return assignee === myName;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'deadline-asc') {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return a.dueDate.localeCompare(b.dueDate);
+      }
+      if (sortBy === 'deadline-desc') {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return b.dueDate.localeCompare(a.dueDate);
+      }
+      if (sortBy === 'created-desc') {
+        const dateA = a.createdDate || '';
+        const dateB = b.createdDate || '';
+        return dateB.localeCompare(dateA);
+      }
+      if (sortBy === 'created-asc') {
+        const dateA = a.createdDate || '';
+        const dateB = b.createdDate || '';
+        return dateA.localeCompare(dateB);
+      }
+      return 0; // 'default' - keeps backend order
+    });
+
+>>>>>>> f13340f (context)
   // Active task editor view
   if (activeEditorTask) {
     return (
@@ -1008,11 +1315,85 @@ export default function App() {
             </span>
           </div>
 
+          {/* Filter & Sort Controls */}
+          <div className="flex items-center gap-2 bg-surface-column p-1 rounded-lg border border-border-subtle">
+            {/* My Tasks Filter Toggle */}
+            <button
+              type="button"
+              onClick={() => setFilterMyTasksOnly(prev => !prev)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                filterMyTasksOnly
+                  ? 'bg-brand-primary text-white shadow-sm'
+                  : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
+              }`}
+              title={filterMyTasksOnly ? 'Show all team tasks' : 'Show only tasks assigned to me'}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span>My Tasks</span>
+              {filterMyTasksOnly && (
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              )}
+            </button>
+
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-1 border-l border-border-subtle/80 pl-2 pr-1">
+              <label htmlFor="task-sort-select" className="text-[10px] uppercase font-mono text-text-muted flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+                <span>Sort:</span>
+              </label>
+              <select
+                id="task-sort-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-surface-card border border-border-subtle/80 rounded px-2 py-0.5 text-xs text-text-primary focus:outline-none focus:border-brand-primary cursor-pointer"
+              >
+                <option value="deadline-asc">Deadline (Earliest first)</option>
+                <option value="deadline-desc">Deadline (Latest first)</option>
+                <option value="created-desc">Created (Newest first)</option>
+                <option value="created-asc">Created (Oldest first)</option>
+              </select>
+            </div>
+          </div>
+
           <span className="text-xs font-mono text-text-muted bg-surface-column px-2.5 py-1 rounded-md border border-border-subtle">
-            {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+            {displayedTasks.length}{filterMyTasksOnly ? ` / ${tasks.length}` : ''} {displayedTasks.length === 1 ? 'task' : 'tasks'}
           </span>
 
+          {/* Deliverables & Milestones Board Toggle (PRD §3.3) */}
           <button
+<<<<<<< HEAD
+=======
+            type="button"
+            onClick={() => setShowDeliverablesPinned(prev => !prev)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+              showDeliverablesPinned
+                ? 'bg-brand-primary text-white border-brand-primary shadow-sm'
+                : 'bg-surface-column hover:bg-surface-elevated text-text-primary border-border-subtle hover:border-[#4e5157]'
+            }`}
+            title="Toggle Pinned Deliverables & Milestones Board (PRD §3.3)"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+            <span className="hidden sm:inline">Deliverables</span>
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full border ${
+                showDeliverablesPinned
+                  ? 'bg-white/20 text-white border-white/30 font-semibold'
+                  : 'bg-surface-elevated text-text-muted border-border-subtle'
+              }`}
+            >
+              {deliverablesStats.ready}/{deliverablesStats.total}
+            </span>
+            <span className="text-[10px] opacity-75">{showDeliverablesPinned ? '▲' : '▼'}</span>
+          </button>
+
+          <button
+>>>>>>> f13340f (context)
             onClick={() => setActiveEditorTask({
               status: 'todo',
               type: 'feature',
@@ -1020,6 +1401,10 @@ export default function App() {
               description: '',
               context: '',
               contextTool: user?.defaultLlmTool || 'Claude',
+<<<<<<< HEAD
+=======
+              promptHistory: '',
+>>>>>>> f13340f (context)
             })}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-medium transition-colors shadow-sm cursor-pointer"
           >
@@ -1079,6 +1464,7 @@ export default function App() {
           Loading tasks for {activeTeam.name}…
         </div>
       ) : (
+<<<<<<< HEAD
         <main className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {STAGES.map((stage) => (
             <KanbanColumn
@@ -1097,6 +1483,40 @@ export default function App() {
             />
           ))}
         </main>
+=======
+        <>
+          {/* Pinned Deliverables & Milestones Board (PRD §3.3) */}
+          <DeliverablesPinnedBoard
+            token={token}
+            teamId={activeTeamId}
+            teamName={activeTeam?.name || 'Workspace'}
+            isCreator={isTeamCreator}
+            isOpen={showDeliverablesPinned}
+            onToggle={() => setShowDeliverablesPinned(prev => !prev)}
+            onStatsChange={handleDeliverablesStatsChange}
+          />
+
+          <main className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {STAGES.map((stage) => (
+              <KanbanColumn
+                key={stage.id}
+                stage={stage}
+                tasks={displayedTasks}
+                onTaskClick={setActiveEditorTask}
+                onAddTask={(status) => setActiveEditorTask({
+                  status,
+                  type: 'feature',
+                  assignee: teamMembersList[0] || user?.name || '',
+                  description: '',
+                  context: '',
+                  contextTool: user?.defaultLlmTool || 'Claude',
+                  promptHistory: '',
+                })}
+              />
+            ))}
+          </main>
+        </>
+>>>>>>> f13340f (context)
       )}
     </div>
   );

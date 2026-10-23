@@ -72,6 +72,10 @@ CREATE TABLE IF NOT EXISTS tasks (
   context            MEDIUMTEXT   NOT NULL,
   context_tool       VARCHAR(32)  NULL,
   context_updated_at DATETIME(3)  NULL,
+<<<<<<< HEAD
+=======
+  prompt_history     MEDIUMTEXT   NULL,
+>>>>>>> f13340f (context)
   INDEX idx_tasks_status  (status),
   INDEX idx_tasks_due     (due_date),
   INDEX idx_tasks_team    (team_id),
@@ -86,6 +90,21 @@ CREATE TABLE IF NOT EXISTS anchors (
   url   VARCHAR(2048) NULL
 ) ENGINE=InnoDB;
 
+<<<<<<< HEAD
+=======
+-- ─── Team Deliverables & Milestones (PRD §3.3) ────────────────────────────────
+CREATE TABLE IF NOT EXISTS team_deliverables (
+  team_id     VARCHAR(36)  NOT NULL,
+  id          VARCHAR(32)  NOT NULL,
+  label       VARCHAR(100) NOT NULL,
+  url         VARCHAR(2048) NULL,
+  status      ENUM('not-started','in-progress','completed') NOT NULL DEFAULT 'not-started',
+  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (team_id, id),
+  FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+>>>>>>> f13340f (context)
 -- ─── Seed: Anchors ────────────────────────────────────────────────────────────
 INSERT IGNORE INTO anchors (id, label, url) VALUES
   ('presentation',  'Presentation',  NULL),

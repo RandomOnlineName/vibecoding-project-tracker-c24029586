@@ -47,9 +47,30 @@ async function initDb() {
       await pool.query(schemaSql);
     }
 
+<<<<<<< HEAD
     // Ensure columns team_id and created_by exist on tasks table
     await pool.query(`ALTER TABLE tasks ADD COLUMN team_id VARCHAR(36) NULL;`).catch(() => {});
     await pool.query(`ALTER TABLE tasks ADD COLUMN created_by VARCHAR(36) NULL;`).catch(() => {});
+=======
+    // Ensure columns team_id, created_by, and prompt_history exist on tasks table
+    await pool.query(`ALTER TABLE tasks ADD COLUMN team_id VARCHAR(36) NULL;`).catch(() => {});
+    await pool.query(`ALTER TABLE tasks ADD COLUMN created_by VARCHAR(36) NULL;`).catch(() => {});
+    await pool.query(`ALTER TABLE tasks ADD COLUMN prompt_history MEDIUMTEXT NULL;`).catch(() => {});
+
+    // Ensure team_deliverables table exists (PRD §3.3)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS team_deliverables (
+        team_id     VARCHAR(36)  NOT NULL,
+        id          VARCHAR(32)  NOT NULL,
+        label       VARCHAR(100) NOT NULL,
+        url         VARCHAR(2048) NULL,
+        status      ENUM('not-started','in-progress','completed') NOT NULL DEFAULT 'not-started',
+        updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (team_id, id),
+        FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB;
+    `).catch(() => {});
+>>>>>>> f13340f (context)
 
     // Migrate orphaned tasks to Default Team
     const [users] = await pool.query('SELECT id FROM users LIMIT 1');
@@ -82,6 +103,17 @@ const TYPES    = ['feature', 'bug', 'urgent', 'additional'];
 const STATUSES = ['todo', 'in-progress', 'review', 'done'];
 const ANCHOR_IDS = ['presentation', 'demo', 'report', 'documentation'];
 
+<<<<<<< HEAD
+=======
+const PRD_DELIVERABLES = [
+  { id: 'presentation',  label: 'Presentation Slides' },
+  { id: 'demo',          label: 'Live Demo & Video Walkthrough' },
+  { id: 'report',        label: 'Project Report' },
+  { id: 'documentation', label: 'Documentation & Architecture' },
+  { id: 'deployment',    label: 'Live Deployment URL' },
+];
+
+>>>>>>> f13340f (context)
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function uuid() {
@@ -125,6 +157,10 @@ function rowToTask(r) {
     contextUpdatedAt: r.context_updated_at
       ? new Date(r.context_updated_at).toISOString()
       : null,
+<<<<<<< HEAD
+=======
+    promptHistory:    r.prompt_history || '',
+>>>>>>> f13340f (context)
   };
 }
 
@@ -192,6 +228,7 @@ function parseTask(body, { partial = false } = {}) {
   if (!partial || has('contextUpdatedAt')) {
     t.context_updated_at = toMysqlDatetime(body.contextUpdatedAt);
   }
+  if (!partial || has('promptHistory')) t.prompt_history = String(body.promptHistory ?? '');
   return { task: t };
 }
 
@@ -547,6 +584,115 @@ app.delete('/api/tasks/:id', requireAuth, wrap(async (req, res) => {
   res.status(204).end();
 }));
 
+<<<<<<< HEAD
+=======
+// ─── Team Deliverables & Milestones (PRD §3.3) ────────────────────────────────
+
+// Get all deliverables for a team (seeded if new)
+app.get('/api/teams/:id/deliverables', requireAuth, wrap(async (req, res) => {
+  const role = await requireTeamMember(req, res, req.params.id);
+  if (!role) return;
+
+  const [existing] = await pool.query(
+    'SELECT id, label, url, status, updated_at FROM team_deliverables WHERE team_id = ?',
+    [req.params.id]
+  );
+
+  const existingMap = new Map(existing.map(d => [d.id, d]));
+  for (const def of PRD_DELIVERABLES) {
+    if (!existingMap.has(def.id)) {
+      await pool.query(
+        'INSERT IGNORE INTO team_deliverables (team_id, id, label, url, status) VALUES (?, ?, ?, NULL, ?)',
+        [req.params.id, def.id, def.label, 'not-started']
+      );
+    }
+  }
+
+  const [rows] = await pool.query(
+    `SELECT id, label, url, status, updated_at
+     FROM team_deliverables
+     WHERE team_id = ?
+     ORDER BY FIELD(id, 'presentation', 'demo', 'report', 'documentation', 'deployment')`,
+    [req.params.id]
+  );
+
+  res.json({
+    role,
+    canEdit: role === 'owner',
+    deliverables: rows.map(r => ({
+      id: r.id,
+      label: r.label,
+      url: r.url || '',
+      status: r.status,
+      updatedAt: r.updated_at,
+    })),
+  });
+}));
+
+// Update a team deliverable (Only the creator / owner of the development team can update)
+app.put('/api/teams/:id/deliverables/:deliverableId', requireAuth, wrap(async (req, res) => {
+  const role = await requireTeamMember(req, res, req.params.id);
+  if (!role) return;
+
+  if (role !== 'owner') {
+    return res.status(403).json({ error: 'Only the creator of the development team can store or update deliverables.' });
+  }
+
+  const { url, status, label } = req.body || {};
+  const validStatuses = ['not-started', 'in-progress', 'completed'];
+
+  const updates = {};
+  if (url !== undefined) {
+    const cleanUrl = String(url || '').trim();
+    updates.url = cleanUrl ? cleanUrl.slice(0, 2048) : null;
+  }
+  if (status !== undefined) {
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: `status must be one of: ${validStatuses.join(', ')}` });
+    }
+    updates.status = status;
+  }
+  if (label !== undefined && String(label).trim()) {
+    updates.label = String(label).trim().slice(0, 100);
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'no valid fields to update' });
+  }
+
+  const [[existing]] = await pool.query(
+    'SELECT id FROM team_deliverables WHERE team_id = ? AND id = ?',
+    [req.params.id, req.params.deliverableId]
+  );
+
+  if (!existing) {
+    const defaultLabel = PRD_DELIVERABLES.find(d => d.id === req.params.deliverableId)?.label || req.params.deliverableId;
+    await pool.query(
+      'INSERT INTO team_deliverables (team_id, id, label, url, status) VALUES (?, ?, ?, ?, ?)',
+      [req.params.id, req.params.deliverableId, updates.label || defaultLabel, updates.url || null, updates.status || 'not-started']
+    );
+  } else {
+    await pool.query(
+      'UPDATE team_deliverables SET ? WHERE team_id = ? AND id = ?',
+      [updates, req.params.id, req.params.deliverableId]
+    );
+  }
+
+  const [[row]] = await pool.query(
+    'SELECT id, label, url, status, updated_at FROM team_deliverables WHERE team_id = ? AND id = ?',
+    [req.params.id, req.params.deliverableId]
+  );
+
+  res.json({
+    id: row.id,
+    label: row.label,
+    url: row.url || '',
+    status: row.status,
+    updatedAt: row.updated_at,
+  });
+}));
+
+>>>>>>> f13340f (context)
 // ─── Anchors ──────────────────────────────────────────────────────────────────
 
 app.get('/api/anchors', requireAuth, wrap(async (_req, res) => {

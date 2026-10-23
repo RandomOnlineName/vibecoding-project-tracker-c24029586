@@ -11,12 +11,12 @@
 ### Visual References
 The images saved in the workspace define the visual language:
 
-- **Reference 1 (![alt text](image-4.png) — Dark UI Structure & Contrast):** Deep charcoal surface hierarchy (`#1e1f22` / `#2b2d30`), clean card compartmentalization, and vivid accent indicators.
-- **Reference 2 (![alt text](image-5.png) — Kanban Layout & Urgency Tinting):** High-visibility column states, prominent status indicators, and distinct category pill badges.
-- **Reference 3 (![alt text](image-6.png) — Utilitarian Information Density):** GitLab-style information-dense issue tracking with clear stage counters, task metadata, and rapid keyboard/dropdown workflows.
+- **Reference 1 (![contrast UI example](image-4.png) — Dark UI Structure & Contrast):** Deep charcoal surface hierarchy (`#1e1f22` / `#2b2d30`), clean card compartmentalization, and vivid accent indicators.
+- **Reference 2 (![kanban example](image-5.png) — Kanban Layout & Urgency Tinting):** High-visibility column states, prominent status indicators, and distinct category pill badges.
+- **Reference 3 (![simple utilitarian gitlab ui](image-6.png) — Utilitarian Information Density):** GitLab-style information-dense issue tracking with clear stage counters, task metadata, and rapid keyboard/dropdown workflows.
 
 ### Anti-references (What we explicitly avoid)
-- **Anti-Reference (![alt text](image-7.png)):** Overly soft, hyper-pastel, low-density light themes with washed-out contrast that sacrifice developer ergonomics and information density.
+- **Anti-Reference (![soft, pastel, transluscent ui](image-7.png)):** Overly soft, hyper-pastel, low-density light themes with washed-out contrast that sacrifice developer ergonomics and information density.
 
 ---
 
