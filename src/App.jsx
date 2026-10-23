@@ -1,15 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from './hooks/useAuth.js';
+import { useTeams } from './hooks/useTeams.js';
+import LoginPage from './pages/LoginPage.jsx';
+import RegisterPage from './pages/RegisterPage.jsx';
+import TeamDashboard from './pages/TeamDashboard.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
 
 /**
  * Vibecoding Project Tracker
  *
- * Milestone 8 (due-tint) & Full-Page Context Workspace:
- *   - Implements Section 2.3 Task Significance & Urgency Color Scale (Timeline):
- *       * Need Today (< 24h / overdue): Rose-500 bottom stripe + Rose badge
- *       * Needed within 5 Days: Amber-500 bottom stripe + Amber badge
- *       * Needed within 2 Weeks: Sky-500 bottom stripe + Sky badge
- *       * Later / Done: Slate-600 bottom stripe + Slate badge
- *   - Dual-scale preservation (Type on pill badge, Significance on bottom stripe).
+ * Full Authentication, Teams, & Kanban Board Integration:
+ *   - Implements Section 2.3 Task Significance & Urgency Color Scale (Timeline)
+ *   - JWT Authentication & Team Scoping
+ *   - Hash-based Routing (#/login, #/register, #/teams, #/board, #/profile)
  */
 
 /**
@@ -17,7 +20,7 @@ import { useState, useEffect, useCallback } from 'react';
  * @property {string} id
  * @property {string} title
  * @property {string} description
- * @property {'feature'|'bug'} type
+ * @property {'feature'|'bug'|'urgent'|'additional'} type
  * @property {'todo'|'in-progress'|'review'|'done'} status
  * @property {string} assignee
  * @property {string|null} dueDate     ISO 'YYYY-MM-DD'
@@ -35,76 +38,7 @@ export const STAGES = [
   { id: 'done',        label: 'Done',        color: 'bg-due-safe' },
 ];
 
-export const TEAM = ['Alex Reed', 'Teammate B', 'Teammate C'];
-export const AI_TOOLS = ['Claude', 'Cursor', 'ChatGPT', 'Copilot', 'Other'];
-
-export const INITIAL_MOCK_TASKS = [
-  {
-    id: 'task-1',
-    title: 'Build task modal with full CRUD capabilities',
-    description: 'Create an expansive editor to add, view, edit, and delete tasks with validation and long text support.',
-    type: 'feature',
-    status: 'todo',
-    assignee: 'Alex Reed',
-    dueDate: '2026-10-25', // Within 5 days -> Amber
-    createdDate: '2026-10-20',
-    context: 'Design tokens from DESIGN.md should be used for styling.\n\nAPI Contract:\nPOST /api/tasks { title, description, context, ... }\nSupports large logs and documentation payloads.',
-    contextTool: 'Claude',
-    contextUpdatedAt: '2026-10-20T12:00:00Z',
-  },
-  {
-    id: 'task-2',
-    title: 'Refine four-column Kanban board layout',
-    description: 'Implement the grid layout displaying columns for To Do, In Progress, Review, and Done.',
-    type: 'feature',
-    status: 'in-progress',
-    assignee: 'Teammate B',
-    dueDate: '2026-10-24', // Tomorrow -> Amber
-    createdDate: '2026-10-20',
-    context: 'Use responsive CSS grid with JetBrains dark theme palette.',
-    contextTool: 'Cursor',
-    contextUpdatedAt: '2026-10-20T12:30:00Z',
-  },
-  {
-    id: 'task-3',
-    title: 'Audit contrast and accessibility on dark theme',
-    description: 'Verify WCAG AA compliance across all status badges and card borders.',
-    type: 'bug',
-    status: 'review',
-    assignee: 'Teammate C',
-    dueDate: '2026-10-23', // Today -> Rose
-    createdDate: '2026-10-21',
-    context: 'Check contrast ratios of pill text on dark surfaces.\nStacktrace from previous contrast test:\nAssertionError: Expected contrast ratio >= 4.5, received 4.1 for #868a91 on #1e1f22',
-    contextTool: 'ChatGPT',
-    contextUpdatedAt: '2026-10-21T14:15:00Z',
-  },
-  {
-    id: 'task-4',
-    title: 'Configure MariaDB schema and Express REST API',
-    description: 'Set up initial tables and endpoint routes for tasks and anchor deliverables.',
-    type: 'feature',
-    status: 'done',
-    assignee: 'Alex Reed',
-    dueDate: '2026-10-20', // Done -> Slate neutral
-    createdDate: '2026-10-20',
-    context: 'Database credentials configured in .env with fallback. MariaDB mediumtext supports up to 16MB of documentation/context.',
-    contextTool: 'Cursor',
-    contextUpdatedAt: '2026-10-20T11:00:00Z',
-  },
-  {
-    id: 'task-5',
-    title: 'Deliverable Anchor Board for Presentations & Reports',
-    description: 'Pin presentation slides, live demo links, and documentation above the board.',
-    type: 'feature',
-    status: 'todo',
-    assignee: 'Alex Reed',
-    dueDate: '2026-11-04', // Within 2 weeks -> Sky Blue
-    createdDate: '2026-10-22',
-    context: 'Pinned anchor deliverables allow quick access to final project links.',
-    contextTool: 'Claude',
-    contextUpdatedAt: '2026-10-22T09:00:00Z',
-  },
-];
+export const AI_TOOLS = ['Claude', 'Cursor', 'ChatGPT', 'Copilot', 'Gemini', 'Other'];
 
 /**
  * Calculates Task Significance & Urgency according to DESIGN.md §2.3:
@@ -189,112 +123,77 @@ export function getTaskSignificance(task) {
 }
 
 /**
- * Tiny fetch wrapper for the MariaDB-backed API (server/index.js).
+ * Tasks Hook scoped to activeTeamId and authenticated with JWT token.
  */
-async function api(path, options = {}) {
-  const res = await fetch(`/api${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
-  if (!res.ok) {
-    let msg = `${res.status} ${res.statusText}`;
-    try {
-      msg = (await res.json()).error || msg;
-    } catch {
-      /* non-JSON error body */
-    }
-    throw new Error(msg);
-  }
-  return res.status === 204 ? null : res.json();
-}
-
-/**
- * Tasks persisted in MariaDB with localStorage sync.
- */
-export function useTasks() {
-  const [tasks, setTasks] = useState(() => {
-    try {
-      const cached = localStorage.getItem('vibetracker.tasks');
-      return cached ? JSON.parse(cached) : INITIAL_MOCK_TASKS;
-    } catch {
-      return INITIAL_MOCK_TASKS;
-    }
-  });
+export function useTasks(token, activeTeamId) {
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('vibetracker.tasks', JSON.stringify(tasks));
-    } catch {
-      /* ignore storage quota limits */
-    }
-  }, [tasks]);
-
   const refresh = useCallback(async () => {
+    if (!token || !activeTeamId) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     try {
-      const fetched = await api('/tasks');
-      if (Array.isArray(fetched) && fetched.length > 0) {
-        setTasks(fetched);
-      } else {
-        setTasks((prev) => (prev && prev.length > 0 ? prev : INITIAL_MOCK_TASKS));
+      const res = await fetch(`/api/tasks?teamId=${activeTeamId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to fetch tasks');
       }
+      const data = await res.json();
+      setTasks(data);
       setError(null);
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token, activeTeamId]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
   const addTask = useCallback(async (task) => {
-    try {
-      const created = await api('/tasks', { method: 'POST', body: task });
-      setTasks((prev) => [...prev, created]);
-      return created;
-    } catch (e) {
-      const newTask = {
-        ...task,
-        id: 'task-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-        createdDate: new Date().toISOString().slice(0, 10),
-      };
-      setTasks((prev) => [...prev, newTask]);
-      return newTask;
-    }
-  }, []);
+    if (!token || !activeTeamId) return;
+    const res = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ ...task, teamId: activeTeamId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create task');
+    setTasks(prev => [...prev, data]);
+    return data;
+  }, [token, activeTeamId]);
 
   const updateTask = useCallback(async (id, patch) => {
-    let previous;
-    setTasks((prev) => {
-      previous = prev;
-      return prev.map((t) => (t.id === id ? { ...t, ...patch } : t));
+    if (!token) return;
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(patch)
     });
-    try {
-      const saved = await api(`/tasks/${id}`, { method: 'PUT', body: patch });
-      setTasks((prev) => prev.map((t) => (t.id === id ? saved : t)));
-      return saved;
-    } catch (e) {
-      return { id, ...patch };
-    }
-  }, []);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update task');
+    setTasks(prev => prev.map(t => t.id === id ? data : t));
+    return data;
+  }, [token]);
 
   const deleteTask = useCallback(async (id) => {
-    let previous;
-    setTasks((prev) => {
-      previous = prev;
-      return prev.filter((t) => t.id !== id);
+    if (!token) return;
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
     });
-    try {
-      await api(`/tasks/${id}`, { method: 'DELETE' });
-    } catch (e) {
-      /* keep optimistic delete */
-    }
-  }, []);
+    if (!res.ok && res.status !== 204) throw new Error('Failed to delete task');
+    setTasks(prev => prev.filter(t => t.id !== id));
+  }, [token]);
 
   return { tasks, loading, error, refresh, addTask, updateTask, deleteTask };
 }
@@ -305,7 +204,7 @@ export function useTasks() {
  *   - Significance Scale: Stripe near the bottom of the card + Due Date Chip
  */
 export function TaskCard({ task, onClick }) {
-  const isBug = task.type === 'bug';
+  const isBug = task.type === 'bug' || task.type === 'urgent';
   const significance = getTaskSignificance(task);
 
   return (
@@ -329,7 +228,7 @@ export function TaskCard({ task, onClick }) {
                 isBug ? 'bg-type-bug' : 'bg-type-feature'
               }`}
             />
-            {isBug ? 'Bug' : 'Feature'}
+            {task.type || 'feature'}
           </span>
 
           {/* Scale 2: Task Significance Due Chip */}
@@ -460,7 +359,7 @@ export function KanbanColumn({ stage, tasks, onTaskClick, onAddTask }) {
 /**
  * Full-Page Task Editor Component
  */
-export function TaskEditorPage({ task, onBack, onSave, onDelete }) {
+export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) {
   const isEditing = Boolean(task?.id);
 
   const [form, setForm] = useState({
@@ -468,7 +367,7 @@ export function TaskEditorPage({ task, onBack, onSave, onDelete }) {
     description: task?.description || '',
     type: task?.type || 'feature',
     status: task?.status || 'todo',
-    assignee: task?.assignee || TEAM[0] || '',
+    assignee: task?.assignee || teamMembers[0] || '',
     dueDate: task?.dueDate || '',
     context: task?.context || '',
     contextTool: task?.contextTool || 'Claude',
@@ -543,7 +442,7 @@ export function TaskEditorPage({ task, onBack, onSave, onDelete }) {
           </span>
           <span
             className={`px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider border ${
-              form.type === 'bug'
+              form.type === 'bug' || form.type === 'urgent'
                 ? 'bg-type-bug/15 text-type-bug border-type-bug/30'
                 : 'bg-type-feature/15 text-type-feature border-type-feature/30'
             }`}
@@ -702,36 +601,27 @@ export function TaskEditorPage({ task, onBack, onSave, onDelete }) {
                 </div>
               </div>
 
-              {/* Type Toggle */}
+              {/* Type Selector */}
               <div>
                 <label className="block text-xs font-medium text-text-muted uppercase tracking-wider mb-2">
                   Category Type
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, type: 'feature' })}
-                    className={`py-2 px-3 rounded-lg text-xs font-medium border flex items-center justify-center gap-2 transition-all ${
-                      form.type === 'feature'
-                        ? 'bg-type-feature/15 text-type-feature border-type-feature shadow-sm'
-                        : 'bg-surface-card text-text-muted border-border-subtle hover:bg-surface-elevated'
-                    }`}
-                  >
-                    <span className="w-2 h-2 rounded-full bg-type-feature" />
-                    Feature
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, type: 'bug' })}
-                    className={`py-2 px-3 rounded-lg text-xs font-medium border flex items-center justify-center gap-2 transition-all ${
-                      form.type === 'bug'
-                        ? 'bg-type-bug/15 text-type-bug border-type-bug shadow-sm'
-                        : 'bg-surface-card text-text-muted border-border-subtle hover:bg-surface-elevated'
-                    }`}
-                  >
-                    <span className="w-2 h-2 rounded-full bg-type-bug" />
-                    Bug
-                  </button>
+                  {['feature', 'bug', 'urgent', 'additional'].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setForm({ ...form, type: t })}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium capitalize border flex items-center justify-center gap-2 transition-all ${
+                        form.type === t
+                          ? 'bg-brand-primary/15 text-brand-accent border-brand-primary shadow-sm'
+                          : 'bg-surface-card text-text-muted border-border-subtle hover:bg-surface-elevated'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${t === 'bug' || t === 'urgent' ? 'bg-type-bug' : 'bg-type-feature'}`} />
+                      {t}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -745,7 +635,7 @@ export function TaskEditorPage({ task, onBack, onSave, onDelete }) {
                   onChange={(e) => setForm({ ...form, assignee: e.target.value })}
                   className="w-full bg-surface-card border border-border-subtle rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-brand-primary cursor-pointer"
                 >
-                  {TEAM.map((member) => (
+                  {teamMembers.map((member) => (
                     <option key={member} value={member}>
                       {member}
                     </option>
@@ -849,78 +739,263 @@ export function TaskEditorPage({ task, onBack, onSave, onDelete }) {
 }
 
 export default function App() {
-  const { tasks, loading, error, addTask, updateTask, deleteTask } = useTasks();
+  const { user, token, loading: authLoading, login, register, logout, updateProfile } = useAuth();
+  const {
+    teams,
+    activeTeam,
+    activeTeamId,
+    teamDetail,
+    setActiveTeamId,
+    createTeam,
+    inviteMember,
+    acceptInvite
+  } = useTeams(token);
+
+  const { tasks, loading: tasksLoading, error: tasksError, addTask, updateTask, deleteTask } = useTasks(token, activeTeamId);
+
+  const [route, setRoute] = useState(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith('#/register')) return 'register';
+    if (hash.startsWith('#/teams')) return 'teams';
+    if (hash.startsWith('#/profile')) return 'profile';
+    if (hash.startsWith('#/accept-invite')) return 'accept-invite';
+    if (hash.startsWith('#/board')) return 'board';
+    return 'board';
+  });
+
+  // Listen to hash changes
+  useEffect(() => {
+    const handleHashChange = () => {
+      const h = window.location.hash;
+      if (h.startsWith('#/register')) setRoute('register');
+      else if (h.startsWith('#/login')) setRoute('login');
+      else if (h.startsWith('#/teams')) setRoute('teams');
+      else if (h.startsWith('#/profile')) setRoute('profile');
+      else if (h.startsWith('#/accept-invite')) setRoute('accept-invite');
+      else if (h.startsWith('#/board')) setRoute('board');
+      else setRoute(token ? (activeTeamId ? 'board' : 'teams') : 'login');
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [token, activeTeamId]);
+
+  // Authentication & routing guard
+  useEffect(() => {
+    if (authLoading) return;
+    if (!token) {
+      if (window.location.hash !== '#/register') {
+        window.location.hash = '#/login';
+        setRoute('login');
+      }
+    } else {
+      const h = window.location.hash;
+      if (!h || h === '#/login' || h === '#/register') {
+        if (!activeTeamId) {
+          window.location.hash = '#/teams';
+          setRoute('teams');
+        } else {
+          window.location.hash = '#/board';
+          setRoute('board');
+        }
+      }
+    }
+  }, [token, authLoading, activeTeamId]);
 
   const [activeEditorTask, setActiveEditorTask] = useState(null);
 
-  const handleOpenAdd = (status = 'todo') => {
-    setActiveEditorTask({
-      status,
-      type: 'feature',
-      assignee: TEAM[0] || '',
-      description: '',
-      context: '',
-      contextTool: 'Claude',
-    });
-  };
+  // Accept invite handler
+  const [inviteTokenParam] = useState(() => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1]);
+    return params.get('token') || '';
+  });
+  const [acceptingInvite, setAcceptingInvite] = useState(false);
+  const [acceptError, setAcceptError] = useState('');
+  const [acceptSuccess, setAcceptSuccess] = useState('');
 
-  const handleOpenEdit = (task) => {
-    setActiveEditorTask(task);
-  };
-
-  const handleBackToBoard = () => {
-    setActiveEditorTask(null);
-  };
-
-  const handleSaveTask = async (formData) => {
-    if (activeEditorTask?.id) {
-      await updateTask(activeEditorTask.id, formData);
-    } else {
-      await addTask(formData);
+  async function handleAcceptInviteSubmit() {
+    if (!inviteTokenParam) return;
+    setAcceptingInvite(true);
+    setAcceptError('');
+    try {
+      const res = await acceptInvite(inviteTokenParam);
+      setAcceptSuccess(res.message || 'Successfully joined team!');
+      setTimeout(() => {
+        window.location.hash = '#/teams';
+        setRoute('teams');
+      }, 1500);
+    } catch (e) {
+      setAcceptError(e.message);
+    } finally {
+      setAcceptingInvite(false);
     }
-    setActiveEditorTask(null);
-  };
+  }
 
-  const handleDeleteTask = async (id) => {
-    await deleteTask(id);
-    setActiveEditorTask(null);
-  };
-
-  // If a task is being created or edited, render the dedicated Full-Page Task Editor
-  if (activeEditorTask) {
+  if (authLoading) {
     return (
-      <TaskEditorPage
-        task={activeEditorTask}
-        onBack={handleBackToBoard}
-        onSave={handleSaveTask}
-        onDelete={handleDeleteTask}
+      <div className="min-h-screen bg-surface-page text-text-muted flex items-center justify-center text-sm">
+        Loading VibeTracker…
+      </div>
+    );
+  }
+
+  if (!token) {
+    if (route === 'register') {
+      return (
+        <RegisterPage
+          onRegister={async (fields) => {
+            await register(fields);
+            window.location.hash = '#/teams';
+            setRoute('teams');
+          }}
+          onGoLogin={() => {
+            window.location.hash = '#/login';
+            setRoute('login');
+          }}
+        />
+      );
+    }
+    return (
+      <LoginPage
+        onLogin={async (email, password) => {
+          await login(email, password);
+          window.location.hash = '#/teams';
+          setRoute('teams');
+        }}
+        onGoRegister={() => {
+          window.location.hash = '#/register';
+          setRoute('register');
+        }}
       />
     );
   }
 
-  // Otherwise, render the main Kanban Board
+  if (route === 'accept-invite') {
+    return (
+      <div className="min-h-screen bg-[#1e1f22] text-[#dfe1e5] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-[#2b2d30] border border-[#3c3f41] rounded-lg p-6 text-center space-y-4">
+          <h2 className="text-xl font-bold text-white">Team Invitation</h2>
+          {acceptSuccess ? (
+            <p className="text-[#22c55e] text-sm">{acceptSuccess}</p>
+          ) : (
+            <>
+              <p className="text-[#8c8fa3] text-sm">You have been invited to join a team on VibeTracker.</p>
+              {acceptError && <p className="text-[#ef4444] text-sm">{acceptError}</p>}
+              <button
+                onClick={handleAcceptInviteSubmit}
+                disabled={acceptingInvite}
+                className="w-full bg-[#4c9ee8] hover:bg-[#5aadff] text-white py-2 rounded text-sm font-semibold transition-colors"
+              >
+                {acceptingInvite ? 'Joining…' : 'Accept Invitation'}
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => { window.location.hash = '#/teams'; setRoute('teams'); }}
+            className="text-[#8c8fa3] hover:text-[#dfe1e5] text-xs underline"
+          >
+            Go to Teams Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (route === 'teams') {
+    return (
+      <TeamDashboard
+        user={user}
+        teams={teams}
+        activeTeam={activeTeam}
+        teamDetail={teamDetail}
+        onSelectTeam={(id) => {
+          setActiveTeamId(id);
+          window.location.hash = '#/board';
+          setRoute('board');
+        }}
+        onCreate={createTeam}
+        onInvite={inviteMember}
+        onGoToBoard={() => {
+          window.location.hash = '#/board';
+          setRoute('board');
+        }}
+      />
+    );
+  }
+
+  if (route === 'profile') {
+    return (
+      <ProfilePage
+        user={user}
+        onUpdate={updateProfile}
+        onBack={() => {
+          window.location.hash = activeTeamId ? '#/board' : '#/teams';
+          setRoute(activeTeamId ? 'board' : 'teams');
+        }}
+      />
+    );
+  }
+
+  const teamMembersList = teamDetail?.members?.map(m => m.name) || [user?.name || 'Alex'];
+
+  // Active task editor view
+  if (activeEditorTask) {
+    return (
+      <TaskEditorPage
+        task={activeEditorTask}
+        teamMembers={teamMembersList}
+        onBack={() => setActiveEditorTask(null)}
+        onSave={async (formData) => {
+          if (activeEditorTask?.id) {
+            await updateTask(activeEditorTask.id, formData);
+          } else {
+            await addTask(formData);
+          }
+          setActiveEditorTask(null);
+        }}
+        onDelete={async (id) => {
+          await deleteTask(id);
+          setActiveEditorTask(null);
+        }}
+      />
+    );
+  }
+
+  // Main Kanban Board View
   return (
     <div className="min-h-screen bg-surface-page text-text-primary p-6 flex flex-col">
-      {/* Header */}
+      {/* Header with Team Switcher & User Profile */}
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-text-primary">
-              VibeTracker
-            </h1>
-            <span className="w-2 h-2 rounded-full bg-gradient-to-tr from-brand-primary to-brand-accent" />
+        <div className="flex items-center gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold tracking-tight text-text-primary">
+                VibeTracker
+              </h1>
+              <span className="w-2 h-2 rounded-full bg-gradient-to-tr from-brand-primary to-brand-accent" />
+            </div>
+            <p className="text-xs text-text-muted mt-0.5">
+              Agile task & prompt tracker · Team Workspace
+            </p>
           </div>
-          <p className="text-xs text-text-muted mt-0.5">
-            Agile task & prompt tracker · Timeline Urgency Color Coding
-          </p>
+
+          {/* Active team pill / switcher */}
+          <button
+            onClick={() => { window.location.hash = '#/teams'; setRoute('teams'); }}
+            className="flex items-center gap-2 px-3 py-1.5 bg-surface-column hover:bg-surface-elevated border border-border-subtle rounded-lg text-xs transition-colors"
+            title="Switch team"
+          >
+            <span className="w-2 h-2 rounded-full bg-brand-primary" />
+            <span className="font-semibold text-text-primary">{activeTeam?.name || 'Select Team'}</span>
+            <span className="text-text-muted">▾</span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Significance Timeline Legend (§2.3) */}
-          <div className="hidden md:flex items-center gap-3 text-[11px] font-mono text-text-muted bg-surface-column px-3 py-1.5 rounded-lg border border-border-subtle">
+          <div className="hidden xl:flex items-center gap-3 text-[11px] font-mono text-text-muted bg-surface-column px-3 py-1.5 rounded-lg border border-border-subtle">
             <span className="text-text-muted/60 uppercase font-sans text-[10px] font-semibold">Urgency:</span>
             <span className="flex items-center gap-1.5 text-rose-400">
-              <span className="w-2 h-2 rounded-full bg-rose-500" /> Today / Overdue
+              <span className="w-2 h-2 rounded-full bg-rose-500" /> Today
             </span>
             <span className="flex items-center gap-1.5 text-amber-400">
               <span className="w-2 h-2 rounded-full bg-amber-500" /> &le; 5 Days
@@ -938,29 +1013,70 @@ export default function App() {
           </span>
 
           <button
-            onClick={() => handleOpenAdd('todo')}
+            onClick={() => setActiveEditorTask({
+              status: 'todo',
+              type: 'feature',
+              assignee: teamMembersList[0] || user?.name || '',
+              description: '',
+              context: '',
+              contextTool: user?.defaultLlmTool || 'Claude',
+            })}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-medium transition-colors shadow-sm cursor-pointer"
           >
             <span>+</span>
             <span>Add Task</span>
           </button>
+
+          {/* Profile & Logout */}
+          <div className="flex items-center gap-2 pl-2 border-l border-border-subtle">
+            <button
+              onClick={() => { window.location.hash = '#/profile'; setRoute('profile'); }}
+              className="flex items-center gap-2 px-2.5 py-1 rounded-lg hover:bg-surface-column transition-colors text-xs"
+              title="Edit Profile"
+            >
+              <div className="w-6 h-6 rounded-full bg-brand-primary/20 text-brand-primary flex items-center justify-center font-bold text-[11px]">
+                {user?.name?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <span className="hidden sm:inline font-medium text-text-primary">{user?.name}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                logout();
+                window.location.hash = '#/login';
+                setRoute('login');
+              }}
+              className="text-text-muted hover:text-type-bug text-xs px-2 py-1 rounded transition-colors"
+              title="Sign out"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Database Error Banner (if offline) */}
-      {error && (
+      {tasksError && (
         <div className="mb-4 rounded-md border border-due-warning/40 bg-due-warning/10 p-3 text-xs text-due-warning flex items-center justify-between">
           <span>
-            API offline ({error}). Operating in local fallback mode. Start server with{' '}
-            <code className="font-mono bg-surface-page px-1 rounded">npm run server</code>.
+            API error: {tasksError}. Ensure backend server is running (<code className="font-mono bg-surface-page px-1 rounded">npm run server</code>).
           </span>
         </div>
       )}
 
-      {/* Main Kanban Board */}
-      {loading ? (
+      {!activeTeam ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+          <p className="text-text-muted text-sm mb-4">No team selected.</p>
+          <button
+            onClick={() => { window.location.hash = '#/teams'; setRoute('teams'); }}
+            className="px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-semibold"
+          >
+            Go to Teams Dashboard
+          </button>
+        </div>
+      ) : tasksLoading ? (
         <div className="flex-1 flex items-center justify-center text-text-muted text-sm">
-          Loading tasks…
+          Loading tasks for {activeTeam.name}…
         </div>
       ) : (
         <main className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -969,8 +1085,15 @@ export default function App() {
               key={stage.id}
               stage={stage}
               tasks={tasks}
-              onTaskClick={handleOpenEdit}
-              onAddTask={handleOpenAdd}
+              onTaskClick={setActiveEditorTask}
+              onAddTask={(status) => setActiveEditorTask({
+                status,
+                type: 'feature',
+                assignee: teamMembersList[0] || user?.name || '',
+                description: '',
+                context: '',
+                contextTool: user?.defaultLlmTool || 'Claude',
+              })}
             />
           ))}
         </main>
