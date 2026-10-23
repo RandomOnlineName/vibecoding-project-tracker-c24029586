@@ -56,15 +56,15 @@ Utilitarian dark mode palette engineered for developer focus, high legibility (W
 
 ### 2.3 Task Significance & Urgency Color Scale (Timeline)
 
-*Applied to **Card Left-Border Accent (`border-l-4`)**, **Due Date Chips**, and **Timeline Dots**.*  
+*Applied to **Bottom Accent Stripe (`h-1.5 w-full rounded-full`)**, **Due Date Chips**, and **Timeline Dots**.*  
 *Mental Model: A **thermal heat progression** from immediate red-hot deadline down to cold, quiet backlog.*
 
 | Significance Level | Token | Hex Code | Dark Mode Classes (`Tailwind`) | Meaning & Timeline Window |
 |---|---|---|---|---|
-| **Need Today** | `significance-today` | `#f43f5e` | `border-l-rose-500 text-rose-400 bg-rose-500/10` | Critical cutoff today (< 24 hours). Highest operational urgency. |
-| **Needed within 5 Days** | `significance-soon` | `#f59e0b` | `border-l-amber-500 text-amber-400 bg-amber-500/10` | Approaching deadline within current work week. Actively scheduled. |
-| **Needed within 2 Weeks** | `significance-sprint` | `#38bdf8` | `border-l-sky-500 text-sky-400 bg-sky-500/10` | Planned within current 2-week cycle. Healthy progress state. |
-| **Later** | `significance-later` | `#64748b` | `border-l-slate-600 text-slate-400 bg-slate-800/40` | Backlog or future phase. Low cognitive load on board scan. |
+| **Need Today** | `significance-today` | `#f43f5e` | `bg-rose-500 text-rose-400 bg-rose-500/15` | Critical cutoff today (< 24 hours). Highest operational urgency. |
+| **Needed within 5 Days** | `significance-soon` | `#f59e0b` | `bg-amber-500 text-amber-400 bg-amber-500/15` | Approaching deadline within current work week. Actively scheduled. |
+| **Needed within 2 Weeks** | `significance-sprint` | `#38bdf8` | `bg-sky-500 text-sky-400 bg-sky-500/15` | Planned within current 2-week cycle. Healthy progress state. |
+| **Later** | `significance-later` | `#64748b` | `bg-slate-600 text-slate-400 bg-slate-800/40` | Backlog or future phase. Low cognitive load on board scan. |
 
 ---
 
@@ -72,17 +72,16 @@ Utilitarian dark mode palette engineered for developer focus, high legibility (W
 
 To prevent sensory conflict when both scales appear on the same task card:
 1. **Type** is always communicated through the **top pill badge** (`bg-{color}/15 text-{color} border border-{color}/30`).
-2. **Significance** is always communicated through the **left vertical card stripe (`border-l-4`)** and the **due-date chip** next to the calendar icon.
+2. **Significance** is always communicated through the **horizontal accent stripe near the bottom of the card** and the **due-date chip** next to the calendar icon.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│▌ [ Urgent Fix ]                              ⏱ Due Today    │  <- Type in Pill Tag, Urgency in Due Chip
-│▌                                                             │
-│▌ Database timeout during bulk task fetch                     │
-│▌ 👤 Alex Reed                                💬 Context ready│
+│  [ Urgent Fix ]                              ⏱ Due Today    │  <- Type in Pill Tag, Urgency in Due Chip
+│                                                              │
+│  Database timeout during bulk task fetch                     │
+│  👤 Alex Reed                                💬 Context ready│
+│  ══════════════════════════════════════════════════════════  │  <- Bottom accent stripe (e.g. Rose for "Need Today")
 └──────────────────────────────────────────────────────────────┘
- ▲
- └── Left 3px accent bar indicates Significance (e.g. Rose for "Need Today")
 ```
 
 ---
@@ -110,7 +109,7 @@ To prevent sensory conflict when both scales appear on the same task card:
 - **Cards:** Crisp dark tiles with subtle borders (`rounded-lg bg-[#2b2d30] border border-[#393b40] p-3.5 hover:border-[#4e5157] hover:bg-[#323438] transition-colors`).
 - **Pill Badges:** Compact utilitarian capsules with dark translucent backgrounds (`rounded-full px-2 py-0.5 text-[11px] font-medium border border-current/20`).
 - **Buttons:** Utilitarian solid or ghost controls with sharp 6px–8px radius (`rounded-md px-3 py-1.5 text-xs font-medium transition-colors`).
-- **Modal:** Elevated dark dialog (`rounded-xl bg-[#25272b] border border-[#43454a] shadow-2xl p-6 max-w-lg`).
+- **Modal / Editor:** Full-page workspace or elevated dark dialog (`rounded-xl bg-[#25272b] border border-[#43454a] shadow-2xl p-6`).
 - **Anchor Board:** Pinned dark toolbar above the Kanban board for quick access to deliverables.
 - **Empty States:** Subtle dashed outline with muted caption (`rounded-lg border border-dashed border-[#393b40] p-6 text-center text-[#868a91] text-xs`).
 - **Drag Affordance (if used):** Lightweight drag handles with fallback status select dropdowns in the task modal for quick one-click column transitions.
@@ -124,7 +123,7 @@ To prevent sensory conflict when both scales appear on the same task card:
 | "+" button label | `+ Add Task` |
 | Empty column placeholder | `No tasks in this stage yet` |
 | Toast after "Copy as Prompt Context" | `Prompt context copied to clipboard` |
-| Confirm-delete message | `Deleting this task will PERMENANTLY delete all context and history` |
+| Confirm-delete message | `Deleting this task will PERMANENTLY delete all context and history` |
 | Handoff toast (M7 `task-owner`) | `Handed off to {name}. Make sure they have necessary context.` |
 
 ---
