@@ -34,3 +34,9 @@ INSERT IGNORE INTO anchors (id, label, url) VALUES
   ('demo',          'Demo',          NULL),
   ('report',        'Report',        NULL),
   ('documentation', 'Documentation', NULL);
+
+INSERT IGNORE INTO tasks (id, title, description, type, status, assignee, due_date, created_date, context, context_tool, context_updated_at) VALUES
+  ('task-1', 'Build task modal with full CRUD capabilities', 'Create a modal to add, view, edit, and delete tasks with validation.', 'feature', 'todo', 'Alex Reed', '2026-10-25', '2026-10-20', 'Design tokens from DESIGN.md should be used for styling.', 'Claude', NOW()),
+  ('task-2', 'Refine four-column Kanban board layout', 'Implement the grid layout displaying columns for To Do, In Progress, Review, and Done.', 'feature', 'in-progress', 'Teammate B', '2026-10-24', '2026-10-20', 'Use responsive CSS grid with JetBrains dark theme palette.', 'Cursor', NOW()),
+  ('task-3', 'Audit contrast and accessibility on dark theme', 'Verify WCAG AA compliance across all status badges and card borders.', 'bug', 'review', 'Teammate C', '2026-10-23', '2026-10-21', 'Check contrast ratios of pill text on dark surfaces.', 'ChatGPT', NOW()),
+  ('task-4', 'Configure MariaDB schema and Express REST API', 'Set up initial tables and endpoint routes for tasks and anchor deliverables.', 'feature', 'done', 'Alex Reed', '2026-10-20', '2026-10-20', 'Database credentials configured in .env with fallback.', 'Cursor', NOW());
