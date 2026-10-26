@@ -47,11 +47,7 @@ async function initDb() {
       await pool.query(schemaSql);
     }
 
-<<<<<<< HEAD
-    // Ensure columns team_id and created_by exist on tasks table
-    await pool.query(`ALTER TABLE tasks ADD COLUMN team_id VARCHAR(36) NULL;`).catch(() => {});
-    await pool.query(`ALTER TABLE tasks ADD COLUMN created_by VARCHAR(36) NULL;`).catch(() => {});
-=======
+
     // Ensure columns team_id, created_by, and prompt_history exist on tasks table
     await pool.query(`ALTER TABLE tasks ADD COLUMN team_id VARCHAR(36) NULL;`).catch(() => {});
     await pool.query(`ALTER TABLE tasks ADD COLUMN created_by VARCHAR(36) NULL;`).catch(() => {});
@@ -70,7 +66,6 @@ async function initDb() {
         FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
       ) ENGINE=InnoDB;
     `).catch(() => {});
->>>>>>> f13340f (context)
 
     // Migrate orphaned tasks to Default Team
     const [users] = await pool.query('SELECT id FROM users LIMIT 1');
@@ -103,8 +98,7 @@ const TYPES    = ['feature', 'bug', 'urgent', 'additional'];
 const STATUSES = ['todo', 'in-progress', 'review', 'done'];
 const ANCHOR_IDS = ['presentation', 'demo', 'report', 'documentation'];
 
-<<<<<<< HEAD
-=======
+
 const PRD_DELIVERABLES = [
   { id: 'presentation',  label: 'Presentation Slides' },
   { id: 'demo',          label: 'Live Demo & Video Walkthrough' },
@@ -113,7 +107,6 @@ const PRD_DELIVERABLES = [
   { id: 'deployment',    label: 'Live Deployment URL' },
 ];
 
->>>>>>> f13340f (context)
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function uuid() {
@@ -157,10 +150,8 @@ function rowToTask(r) {
     contextUpdatedAt: r.context_updated_at
       ? new Date(r.context_updated_at).toISOString()
       : null,
-<<<<<<< HEAD
-=======
+
     promptHistory:    r.prompt_history || '',
->>>>>>> f13340f (context)
   };
 }
 
@@ -584,8 +575,7 @@ app.delete('/api/tasks/:id', requireAuth, wrap(async (req, res) => {
   res.status(204).end();
 }));
 
-<<<<<<< HEAD
-=======
+
 // ─── Team Deliverables & Milestones (PRD §3.3) ────────────────────────────────
 
 // Get all deliverables for a team (seeded if new)
@@ -692,7 +682,6 @@ app.put('/api/teams/:id/deliverables/:deliverableId', requireAuth, wrap(async (r
   });
 }));
 
->>>>>>> f13340f (context)
 // ─── Anchors ──────────────────────────────────────────────────────────────────
 
 app.get('/api/anchors', requireAuth, wrap(async (_req, res) => {

@@ -5,10 +5,8 @@ import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import TeamDashboard from './pages/TeamDashboard.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
-<<<<<<< HEAD
-=======
+
 import DeliverablesPinnedBoard from './components/DeliverablesPinnedBoard.jsx';
->>>>>>> f13340f (context)
 
 /**
  * Vibecoding Project Tracker
@@ -1037,17 +1035,6 @@ export default function App() {
   const [showDeliverablesPinned, setShowDeliverablesPinned] = useState(true);
   const [deliverablesStats, setDeliverablesStats] = useState({ ready: 0, completed: 0, total: 5 });
 
-<<<<<<< HEAD
-  // Accept invite handler
-  const [inviteTokenParam] = useState(() => {
-    const params = new URLSearchParams(window.location.hash.split('?')[1]);
-    return params.get('token') || '';
-  });
-  const [acceptingInvite, setAcceptingInvite] = useState(false);
-  const [acceptError, setAcceptError] = useState('');
-  const [acceptSuccess, setAcceptSuccess] = useState('');
-
-=======
   // Filtering & Sorting State
   const [filterMyTasksOnly, setFilterMyTasksOnly] = useState(false);
   const [sortBy, setSortBy] = useState('default'); // 'default' | 'deadline-asc' | 'deadline-desc' | 'created-desc' | 'created-asc'
@@ -1079,7 +1066,7 @@ export default function App() {
   const [acceptError, setAcceptError] = useState('');
   const [acceptSuccess, setAcceptSuccess] = useState('');
 
->>>>>>> f13340f (context)
+
   async function handleAcceptInviteSubmit() {
     if (!inviteTokenParam) return;
     setAcceptingInvite(true);
@@ -1205,8 +1192,6 @@ export default function App() {
 
   const teamMembersList = teamDetail?.members?.map(m => m.name) || [user?.name || 'Alex'];
 
-<<<<<<< HEAD
-=======
   // Filter & Sort tasks
   const displayedTasks = tasks
     .filter(task => {
@@ -1243,8 +1228,8 @@ export default function App() {
       return 0; // 'default' - keeps backend order
     });
 
->>>>>>> f13340f (context)
-  // Active task editor view
+
+    // Active task editor view
   if (activeEditorTask) {
     return (
       <TaskEditorPage
@@ -1365,8 +1350,6 @@ export default function App() {
 
           {/* Deliverables & Milestones Board Toggle (PRD §3.3) */}
           <button
-<<<<<<< HEAD
-=======
             type="button"
             onClick={() => setShowDeliverablesPinned(prev => !prev)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
@@ -1393,7 +1376,7 @@ export default function App() {
           </button>
 
           <button
->>>>>>> f13340f (context)
+
             onClick={() => setActiveEditorTask({
               status: 'todo',
               type: 'feature',
@@ -1401,10 +1384,9 @@ export default function App() {
               description: '',
               context: '',
               contextTool: user?.defaultLlmTool || 'Claude',
-<<<<<<< HEAD
-=======
+
               promptHistory: '',
->>>>>>> f13340f (context)
+
             })}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-medium transition-colors shadow-sm cursor-pointer"
           >
@@ -1464,26 +1446,7 @@ export default function App() {
           Loading tasks for {activeTeam.name}…
         </div>
       ) : (
-<<<<<<< HEAD
-        <main className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {STAGES.map((stage) => (
-            <KanbanColumn
-              key={stage.id}
-              stage={stage}
-              tasks={tasks}
-              onTaskClick={setActiveEditorTask}
-              onAddTask={(status) => setActiveEditorTask({
-                status,
-                type: 'feature',
-                assignee: teamMembersList[0] || user?.name || '',
-                description: '',
-                context: '',
-                contextTool: user?.defaultLlmTool || 'Claude',
-              })}
-            />
-          ))}
-        </main>
-=======
+
         <>
           {/* Pinned Deliverables & Milestones Board (PRD §3.3) */}
           <DeliverablesPinnedBoard
@@ -1516,7 +1479,6 @@ export default function App() {
             ))}
           </main>
         </>
->>>>>>> f13340f (context)
       )}
     </div>
   );
