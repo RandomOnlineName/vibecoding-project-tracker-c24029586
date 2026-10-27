@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import mysql from 'mysql2/promise';
+import { seedDatabase } from './seed.js';
+import { sqlitePool } from './sqlite-db.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -16,37 +18,69 @@ const JWT_SECRET = process.env.JWT_SECRET || 'vibetracker-dev-secret-change-in-p
 const JWT_EXPIRY = '7d';
 const INVITE_EXPIRY_DAYS = 7;
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || '127.0.0.1',
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER || 'vibetracker',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'vibetracker',
-  waitForConnections: true,
-  connectionLimit: 10,
-  // Return DATE columns as 'YYYY-MM-DD' strings, matching the Task data model.
-  dateStrings: ['DATE'],
-  multipleStatements: true,
-});
+const useSqlite = process.env.DB_CLIENT === 'sqlite' || process.env.VERCEL === '1' || process.env.DB_USE_SQLITE === 'true';
+
+const dbSsl = process.env.DB_SSL === 'true'
+  ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true' }
+  : undefined;
+
+const pool = useSqlite
+  ? sqlitePool
+  : mysql.createPool({
+      host: process.env.DB_HOST || '127.0.0.1',
+      port: Number(process.env.DB_PORT || 3306),
+      user: process.env.DB_USER || 'vibetracker',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'vibetracker',
+      waitForConnections: true,
+      connectionLimit: 10,
+      ssl: dbSsl,
+      // Return DATE columns as 'YYYY-MM-DD' strings, matching the Task data model.
+      dateStrings: ['DATE'],
+      multipleStatements: true,
+    });
 
 async function initDb() {
   try {
-    const tempConn = await mysql.createConnection({
-      host: process.env.DB_HOST || '127.0.0.1',
-      port: Number(process.env.DB_PORT || 3306),
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-    });
-    const dbName = process.env.DB_NAME || 'vibetracker';
-    await tempConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
-    await tempConn.end();
+    if (useSqlite) {
+      console.log('📦 Using SQLite engine (Option 1: Serverless / In-Memory / File in /tmp)...');
+      const schemaPath = path.join(__dirname, 'schema.sqlite.sql');
+      if (fs.existsSync(schemaPath)) {
+        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+        await pool.query(schemaSql);
+      }
+      const [users] = await pool.query('SELECT COUNT(*) as count FROM users');
+      const count = users[0]?.count || 0;
+      if (count === 0 || process.env.DB_RESET_ON_BOOT === 'true' || process.env.RESET_ON_BOOT === 'true') {
+        console.log('🔄 Regenerating demo dataset on startup...');
+        await seedDatabase(pool, { delay: 0 });
+      }
+      console.log('SQLite database initialized successfully.');
+      return;
+    }
+    if (process.env.DB_SKIP_CREATE !== 'true') {
+      try {
+        const tempConn = await mysql.createConnection({
+          host: process.env.DB_HOST || '127.0.0.1',
+          port: Number(process.env.DB_PORT || 3306),
+          user: process.env.DB_USER || 'root',
+          password: process.env.DB_PASSWORD || '',
+          ssl: dbSsl,
+        });
+        const dbName = process.env.DB_NAME || 'vibetracker';
+        await tempConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+        await tempConn.end();
+      } catch (createErr) {
+        // Many managed cloud databases do not permit CREATE DATABASE; log and proceed
+        console.warn('Notice: Could not execute CREATE DATABASE (expected if using managed cloud DB):', createErr.message);
+      }
+    }
 
     const schemaPath = path.join(__dirname, 'schema.sql');
     if (fs.existsSync(schemaPath)) {
       const schemaSql = fs.readFileSync(schemaPath, 'utf8');
       await pool.query(schemaSql);
     }
-
 
     // Ensure columns team_id, created_by, and prompt_history exist on tasks table
     await pool.query(`ALTER TABLE tasks ADD COLUMN team_id VARCHAR(36) NULL;`).catch(() => {});
@@ -67,27 +101,33 @@ async function initDb() {
       ) ENGINE=InnoDB;
     `).catch(() => {});
 
-    // Migrate orphaned tasks to Default Team
-    const [users] = await pool.query('SELECT id FROM users LIMIT 1');
-    const vUserId = users[0]?.id || null;
-    const vTeamId = 'default-team-0000-0000-000000000000';
+    // Option 2: Automatic regenerate / seed on boot for testing
+    if (process.env.DB_RESET_ON_BOOT === 'true' || process.env.RESET_ON_BOOT === 'true') {
+      console.log('🔄 DB_RESET_ON_BOOT=true: Regenerating demo dataset on startup...');
+      await seedDatabase(pool, { delay: 0 });
+    } else {
+      // Migrate orphaned tasks to Default Team
+      const [users] = await pool.query('SELECT id FROM users LIMIT 1');
+      const vUserId = users[0]?.id || null;
+      const vTeamId = 'default-team-0000-0000-000000000000';
 
-    const [teams] = await pool.query('SELECT 1 FROM teams WHERE id = ?', [vTeamId]);
-    if (teams.length === 0) {
-      await pool.query(
-        'INSERT INTO teams (id, name, description, created_by, created_at) VALUES (?, ?, ?, ?, NOW())',
-        [vTeamId, 'Default Team', 'Auto-created during migration', vUserId]
-      );
-      if (vUserId) {
+      const [teams] = await pool.query('SELECT 1 FROM teams WHERE id = ?', [vTeamId]);
+      if (teams.length === 0) {
         await pool.query(
-          'INSERT IGNORE INTO team_members (team_id, user_id, role) VALUES (?, ?, ?)',
-          [vTeamId, vUserId, 'owner']
+          'INSERT INTO teams (id, name, description, created_by, created_at) VALUES (?, ?, ?, ?, NOW())',
+          [vTeamId, 'Default Team', 'Auto-created during migration', vUserId]
         );
+        if (vUserId) {
+          await pool.query(
+            'INSERT IGNORE INTO team_members (team_id, user_id, role) VALUES (?, ?, ?)',
+            [vTeamId, vUserId, 'owner']
+          );
+        }
       }
+      await pool.query('UPDATE tasks SET team_id = ? WHERE team_id IS NULL', [vTeamId]);
     }
-    await pool.query('UPDATE tasks SET team_id = ? WHERE team_id IS NULL', [vTeamId]);
 
-    console.log('Database schema and tables initialized successfully.');
+    console.log('Database initialized successfully.');
   } catch (err) {
     console.error('Database initialization error:', err.message);
   }
@@ -707,6 +747,14 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'internal server error' });
 });
 
-initDb().then(() => {
-  app.listen(PORT, () => console.log(`API listening on http://localhost:${PORT}`));
-});
+app.use((_req, res) => res.status(404).json({ error: 'not found' }));
+
+export const initDbPromise = initDb();
+
+if (process.env.VERCEL !== '1' && !process.env.NOW_REGION) {
+  initDbPromise.then(() => {
+    app.listen(PORT, '0.0.0.0', () => console.log(`API listening on http://localhost:${PORT}`));
+  });
+}
+
+export default app;

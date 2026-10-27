@@ -20,8 +20,14 @@ import 'dotenv/config';
 import mysql from 'mysql2/promise';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // ─── DB Connection ────────────────────────────────────────────────────────────
+
+const dbSsl = process.env.DB_SSL === 'true'
+  ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true' }
+  : undefined;
 
 const pool = mysql.createPool({
   host:     process.env.DB_HOST     || '127.0.0.1',
@@ -31,6 +37,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME     || 'vibetracker',
   waitForConnections: true,
   connectionLimit: 5,
+  ssl: dbSsl,
   dateStrings: ['DATE'],
   multipleStatements: true,
 });
@@ -63,16 +70,16 @@ const divider = (label)    => console.log(`\n${DIM}─────────�
 
 // ─── Main Seed ────────────────────────────────────────────────────────────────
 
-async function seed() {
+export async function seedDatabase(targetPool = pool, { delay = 0 } = {}) {
   console.log(`\n${CYAN}╔══════════════════════════════════════════════╗${RESET}`);
   console.log(`${CYAN}║       VibeTracker Demo Data Seeder           ║${RESET}`);
   console.log(`${CYAN}╚══════════════════════════════════════════════╝${RESET}\n`);
 
   warn('This will DELETE all existing users, teams, tasks, and deliverables.');
   info('Starting in 2 seconds... (Ctrl+C to abort)\n');
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  if (delay > 0) { await new Promise(resolve => setTimeout(resolve, delay)); }
 
-  const conn = await pool.getConnection();
+  const conn = await targetPool.getConnection();
 
   try {
     await conn.beginTransaction();
@@ -726,11 +733,25 @@ Audit the following Express.js server routes for SQL injection vulnerabilities. 
     await conn.rollback();
     console.error(`\n${RED}✗ Seed failed — rolled back all changes.${RESET}`);
     console.error(err);
-    process.exit(1);
+    if (targetPool === pool && isDirectRun) {
+      process.exit(1);
+    }
+    throw err;
   } finally {
     conn.release();
-    await pool.end();
   }
 }
 
-seed();
+// Run directly from CLI: node server/seed.js
+const isDirectRun = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+if (isDirectRun) {
+  seedDatabase(pool, { delay: 2000 })
+    .then(async () => {
+      await pool.end();
+      process.exit(0);
+    })
+    .catch(async () => {
+      await pool.end();
+      process.exit(1);
+    });
+}
