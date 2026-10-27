@@ -3,6 +3,7 @@ import express from 'express';
 import mysql from 'mysql2/promise';
 import { seedDatabase } from './seed.js';
 import { sqlitePool } from './sqlite-db.js';
+import { SQLITE_SCHEMA } from './schema.sqlite.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -44,11 +45,7 @@ async function initDb() {
   try {
     if (useSqlite) {
       console.log('📦 Using SQLite engine (Option 1: Serverless / In-Memory / File in /tmp)...');
-      const schemaPath = path.join(__dirname, 'schema.sqlite.sql');
-      if (fs.existsSync(schemaPath)) {
-        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-        await pool.query(schemaSql);
-      }
+      await pool.query(SQLITE_SCHEMA);
       const [users] = await pool.query('SELECT COUNT(*) as count FROM users');
       const count = users[0]?.count || 0;
       if (count === 0 || process.env.DB_RESET_ON_BOOT === 'true' || process.env.RESET_ON_BOOT === 'true') {

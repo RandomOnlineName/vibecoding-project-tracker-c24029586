@@ -30,7 +30,31 @@ export async function getDb() {
   if (db) return db;
 
   if (!sqlInstance) {
-    sqlInstance = await initSqlJs();
+    const wasmCandidates = [
+      path.join(__dirname, 'sql-wasm.wasm'),
+      path.join(process.cwd(), 'server', 'sql-wasm.wasm'),
+      path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+      path.join(__dirname, '..', 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+    ];
+
+    let wasmBinary = null;
+    let foundPath = null;
+    for (const p of wasmCandidates) {
+      if (fs.existsSync(p)) {
+        wasmBinary = fs.readFileSync(p);
+        foundPath = p;
+        break;
+      }
+    }
+
+    if (wasmBinary) {
+      sqlInstance = await initSqlJs({
+        wasmBinary,
+        locateFile: () => foundPath,
+      });
+    } else {
+      sqlInstance = await initSqlJs();
+    }
   }
 
   if (fs.existsSync(dbPath) && process.env.DB_RESET_ON_BOOT !== 'true') {
