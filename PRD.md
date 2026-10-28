@@ -68,3 +68,18 @@
 ## 4. Assumptions
 
 * **Team Size:** Small team with high familiarity; no complex enterprise permissions or multi-role bureaucracy required.
+
+---
+
+## 5. Extra Features (unsorted)
+
+* **Accounts:** Email/password registration and sign-in; profile page for editing details and changing password; seeded demo account with a "Use demo account" shortcut on the login page.
+* **Teams:** Create teams; invite members by email (existing users are added directly, others get a shareable invite link); accept-invite page.
+* **Owner (team creator) permissions:** Only the team creator can reassign tasks and edit deliverables; other members see them read-only.
+* **Quick reassign / handoff:** Reassign dropdown on each task row, with a handoff confirmation toast.
+* **Extra task categories:** `urgent` and `additional` alongside `feature` and `bug`.
+* **Prompt history log:** Separate `promptHistory` field per task, with "Quick Append" for timestamped, tool-tagged entries and "Copy All Prompts".
+* **Editor views:** Full-page task editor with stacked / context-only / history-only views; keyboard shortcuts (Ctrl+S save, Esc back).
+* **Board filtering & sorting:** "My Tasks" filter; sort by deadline or created date; live task count; urgency legend.
+* **Deliverables board extras:** Collapsible pinned board with linked/completed counts and progress bar; copy/open link buttons.
+* **Storage / deployment:** Client-side localStorage backend (mock API) for the deployed demo; optional SQLite/MariaDB server and Vercel deployment.

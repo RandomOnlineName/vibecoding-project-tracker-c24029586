@@ -32,18 +32,18 @@ const DELIVERABLE_ICONS = {
 const STATUS_CONFIG = {
   'completed': {
     label: 'Completed',
-    pill: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    dot: 'bg-emerald-400',
+    pill: 'bg-status-success/10 text-status-success border-status-success/70',
+    dot: 'bg-status-success',
   },
   'in-progress': {
     label: 'In Progress',
-    pill: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-    dot: 'bg-amber-400',
+    pill: 'bg-status-warning/10 text-status-warning border-status-warning/70',
+    dot: 'bg-status-warning',
   },
   'not-started': {
     label: 'Not Started',
-    pill: 'bg-slate-700/40 text-slate-400 border-slate-600/40',
-    dot: 'bg-slate-500',
+    pill: 'text-text-muted border-border-strong',
+    dot: 'bg-slate-400',
   },
 };
 
@@ -120,7 +120,8 @@ export default function DeliverablesPinnedBoard({
     };
   }, [token, teamId]);
 
-  const canEdit = canEditServer || isCreatorProp;
+  // Owner-only: the API decides, and the UI must agree the user created the team
+  const canEdit = canEditServer && isCreatorProp;
 
   const startEdit = (d) => {
     setEditingId(d.id);
@@ -194,190 +195,177 @@ export default function DeliverablesPinnedBoard({
   const totalCount = deliverables.length || 5;
   const progressPercent = Math.round((completedCount / totalCount) * 100);
 
-  // If collapsed, show a sleek pinned summary ribbon
+  // If collapsed, show a single ruled summary strip
   if (!isOpen) {
     return (
-      <div className="mb-5 bg-surface-column/80 hover:bg-surface-column border border-border-subtle rounded-xl px-4 py-2.5 transition-colors flex items-center justify-between gap-4 text-xs">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onToggle}
-            className="flex items-center gap-2 font-semibold text-text-primary hover:text-white transition-colors"
-            title="Expand Deliverables & Milestones Board"
-          >
-            <span className="w-2 h-2 rounded-full bg-brand-primary" />
-            <span>Deliverables & Milestones</span>
-            <span className="text-[10px] text-text-muted font-mono">
-              ({configuredCount}/{totalCount} linked · {completedCount} completed)
-            </span>
-            <span className="text-text-muted hover:text-text-primary text-[10px]">▼ Expand</span>
-          </button>
+      <section
+        id="deliverables-board"
+        aria-label="Deliverables & Milestones (collapsed)"
+        className="mb-4 bg-surface-column border border-border-subtle border-l-4 border-l-brand-accent px-3 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs"
+      >
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h2 className="font-bold uppercase tracking-wider text-text-primary">Deliverables & Milestones</h2>
+          <span className="text-[11px] text-text-muted font-mono">
+            {configuredCount}/{totalCount} linked · {completedCount} completed
+          </span>
 
-          {/* Quick Anchor Status Dots */}
-          <div className="hidden sm:flex items-center gap-2 border-l border-border-subtle pl-3">
+          {/* Quick anchor status swatches */}
+          <ul aria-label="Deliverable status" className="hidden sm:flex items-center gap-3 border-l border-border-subtle pl-3">
             {deliverables.map((d) => {
               const statusCfg = STATUS_CONFIG[d.status] || STATUS_CONFIG['not-started'];
               return (
-                <span
+                <li
                   key={d.id}
                   className="flex items-center gap-1 text-[11px] font-mono text-text-muted"
                   title={`${d.label}: ${d.url ? d.url : 'No link set'} (${statusCfg.label})`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${d.url ? statusCfg.dot : 'bg-slate-600'}`} />
+                  <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${d.url ? statusCfg.dot : 'bg-slate-600'}`} />
                   <span className="capitalize">{d.id}</span>
-                </span>
+                  <span className="sr-only">: {d.url ? statusCfg.label : 'No link set'}</span>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-2 text-[11px] font-mono text-text-muted">
-            <span>{progressPercent}% Complete</span>
-            <div className="w-16 h-1.5 bg-surface-card rounded-full overflow-hidden border border-border-subtle/50">
-              <div
-                className="h-full bg-emerald-400 transition-all rounded-full"
-                style={{ width: `${progressPercent}%` }}
-              />
+            <span>{progressPercent}% complete</span>
+            <div
+              role="progressbar"
+              aria-label="Deliverables completed"
+              aria-valuenow={progressPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              className="w-16 h-1.5 rounded-full overflow-hidden bg-surface-card border border-border-strong"
+            >
+              <div className="h-full rounded-full bg-status-success transition-all" style={{ width: `${progressPercent}%` }} />
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onToggle}
-            className="px-2.5 py-1 rounded-md bg-surface-card hover:bg-surface-elevated text-brand-accent hover:text-white border border-border-subtle text-[11px] font-medium transition-colors"
-          >
+          <button type="button" onClick={onToggle} aria-expanded={false} className="btn-secondary py-1">
             Show Pinned Board
           </button>
         </div>
-      </div>
+      </section>
     );
   }
 
-  // Expanded Pinned Board View above the Kanban board
+  // Expanded pinned board: header row + 5 ruled cells
   return (
-    <div className="mb-6 bg-surface-column border border-border-subtle rounded-xl p-4 shadow-sm animate-fade-in text-text-primary">
-      {/* Header bar of the Pinned Section */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b border-border-subtle/80">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-brand-primary/20 border border-brand-primary/30 flex items-center justify-center text-brand-accent">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
+    <section
+      id="deliverables-board"
+      aria-labelledby="deliverables-heading"
+      className="mb-4 bg-surface-column border border-border-subtle border-t-2 border-t-brand-accent animate-fade-in text-text-primary"
+    >
+      {/* Header row */}
+      <header className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 border-b border-border-strong">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 id="deliverables-heading" className="text-xs font-bold uppercase tracking-wider text-text-primary">
+              Project Deliverables & Milestones (PRD §3.3)
+            </h2>
+            {canEdit ? (
+              <span className="tag text-brand-accent border-brand-accent/70">Team Creator Mode</span>
+            ) : (
+              <span className="tag text-text-muted border-border-strong">Read-Only · Managed by Creator</span>
+            )}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-text-primary">
-                Project Deliverables & Milestones (PRD §3.3)
-              </h2>
-              {canEdit ? (
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-primary/15 text-brand-accent border border-brand-primary/30">
-                  👑 Team Creator Mode
-                </span>
-              ) : (
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-surface-elevated text-text-muted border border-border-subtle">
-                  🔒 Read-Only (Managed by Creator)
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] text-text-muted mt-0.5">
-              Pinned anchor board for {teamName} · presentation, demo, report, documentation, deployment
-            </p>
-          </div>
+          <p className="text-[11px] text-text-muted mt-0.5">
+            Pinned anchor board for {teamName} · presentation, demo, report, documentation, deployment
+          </p>
         </div>
 
         {/* Progress & Actions */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-xs font-mono text-text-muted bg-surface-card px-2.5 py-1 rounded-md border border-border-subtle">
-            <span>{configuredCount}/{totalCount} linked</span>
-            <span>·</span>
-            <span className="text-emerald-400 font-semibold">{progressPercent}% complete</span>
-          </div>
+          <p className="text-xs font-mono text-text-muted">
+            {configuredCount}/{totalCount} linked · <span className="text-status-success font-semibold">{progressPercent}% complete</span>
+          </p>
 
           <button
             type="button"
             onClick={onToggle}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md hover:bg-surface-elevated text-text-muted hover:text-text-primary text-xs transition-colors border border-border-subtle"
+            aria-expanded={true}
+            className="btn-secondary py-1"
             title="Collapse Deliverables Section"
           >
-            <span>▲</span>
+            <span aria-hidden="true">▲</span>
             <span>Collapse</span>
           </button>
         </div>
-      </div>
+      </header>
 
       {error && (
-        <div className="mb-3 rounded-md bg-rose-500/10 border border-rose-500/30 p-2 text-xs text-rose-400">
+        <p role="alert" className="px-3 py-2 border-b border-border-subtle bg-type-urgent/10 text-xs text-type-urgent">
           Error loading deliverables: {error}
-        </div>
+        </p>
       )}
 
-      {/* 5-Column Responsive Grid of Anchors */}
+      {/* 5 ruled cells: 1px gaps over the border colour draw the dividers */}
       {loading && deliverables.length === 0 ? (
-        <div className="h-28 flex items-center justify-center text-xs text-text-muted font-mono">
+        <p role="status" className="h-28 flex items-center justify-center text-xs text-text-muted font-mono">
           Loading deliverables…
-        </div>
+        </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-px bg-border-subtle">
           {deliverables.map((d) => {
             const isEditing = editingId === d.id;
             const statusCfg = STATUS_CONFIG[d.status] || STATUS_CONFIG['not-started'];
             const icon = DELIVERABLE_ICONS[d.id] || DELIVERABLE_ICONS.report;
+            const urlId = `deliverable-url-${d.id}`;
+            const statusId = `deliverable-status-${d.id}`;
 
             return (
-              <div
+              <li
                 key={d.id}
-                className={`bg-surface-card border rounded-lg p-3 transition-all flex flex-col justify-between ${
-                  isEditing
-                    ? 'border-brand-primary ring-1 ring-brand-primary/40 shadow-md'
-                    : 'border-border-subtle hover:border-[#4e5157]'
+                className={`p-3 flex flex-col justify-between transition-colors ${
+                  isEditing ? 'bg-surface-card ring-2 ring-inset ring-brand-accent' : 'bg-surface-page'
                 }`}
               >
                 <div>
-                  {/* Top: Icon + Label + Status Pill */}
+                  {/* Top: Icon + Label + Status Tag */}
                   <div className="flex items-start justify-between gap-1.5 mb-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <div className="w-6 h-6 rounded bg-surface-elevated border border-border-subtle/80 flex items-center justify-center shrink-0">
-                        {icon}
-                      </div>
-                      <span className="text-xs font-semibold text-text-primary truncate" title={d.label}>
-                        {d.label}
-                      </span>
-                    </div>
+                    <h3 className="flex items-center gap-1.5 min-w-0 text-xs font-semibold text-text-primary">
+                      <span aria-hidden="true" className="shrink-0">{icon}</span>
+                      <span className="truncate" title={d.label}>{d.label}</span>
+                    </h3>
 
-                    <span
-                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border shrink-0 ${statusCfg.pill}`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+                    <span className={`tag shrink-0 text-[10px] ${statusCfg.pill}`}>
+                      <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
                       <span>{statusCfg.label}</span>
                     </span>
                   </div>
 
                   {/* Inline Editing Form */}
                   {isEditing ? (
-                    <div className="space-y-2 pt-1 border-t border-border-subtle/80 animate-fade-in text-xs">
+                    <form
+                      onSubmit={(e) => { e.preventDefault(); handleSave(d.id); }}
+                      className="space-y-2 pt-2 border-t border-border-subtle animate-fade-in text-xs"
+                    >
                       <div>
-                        <label className="block text-[10px] font-mono uppercase text-text-muted mb-0.5">
+                        <label htmlFor={urlId} className="field-label text-[10px] mb-0.5">
                           URL / Link
                         </label>
                         <input
+                          id={urlId}
                           type="url"
                           autoFocus
                           value={draftUrl}
                           onChange={(e) => setDraftUrl(e.target.value)}
                           placeholder="https://..."
-                          className="w-full bg-[#121316] font-mono border border-border-subtle rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-brand-primary"
+                          className="field bg-surface-code font-mono px-2 py-1 text-xs"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-mono uppercase text-text-muted mb-0.5">
+                        <label htmlFor={statusId} className="field-label text-[10px] mb-0.5">
                           Status
                         </label>
                         <select
+                          id={statusId}
                           value={draftStatus}
                           onChange={(e) => setDraftStatus(e.target.value)}
-                          className="w-full bg-[#121316] border border-border-subtle rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-brand-primary cursor-pointer"
+                          className="field bg-surface-code px-2 py-1 text-xs cursor-pointer"
                         >
                           <option value="not-started">Not Started</option>
                           <option value="in-progress">In Progress</option>
@@ -386,37 +374,32 @@ export default function DeliverablesPinnedBoard({
                       </div>
 
                       <div className="flex items-center justify-end gap-1.5 pt-1">
-                        <button
-                          type="button"
-                          onClick={cancelEdit}
-                          className="px-2 py-0.5 rounded text-[11px] text-text-muted hover:text-text-primary border border-border-subtle"
-                        >
+                        <button type="button" onClick={cancelEdit} className="btn-secondary px-2 py-0.5 text-[11px]">
                           Cancel
                         </button>
                         <button
-                          type="button"
-                          onClick={() => handleSave(d.id)}
+                          type="submit"
                           disabled={savingId === d.id}
-                          className="px-2.5 py-0.5 rounded text-[11px] font-semibold bg-brand-primary hover:bg-brand-primary/90 text-white shadow-sm disabled:opacity-50 transition-colors"
+                          className="btn-primary px-3 py-0.5 text-[11px]"
                         >
                           {savingId === d.id ? 'Saving…' : 'Save'}
                         </button>
                       </div>
-                    </div>
+                    </form>
                   ) : (
                     /* Display View */
-                    <div className="space-y-2 pt-1">
+                    <div className="pt-1">
                       {d.url ? (
-                        <div className="bg-[#121316] border border-border-subtle/80 rounded p-1.5 flex items-center justify-between text-xs">
-                          <span className="font-mono text-[11px] text-text-muted truncate max-w-[110px]" title={d.url}>
+                        <div className="bg-surface-code border border-border-subtle px-1.5 py-1 flex items-center justify-between gap-1 text-xs">
+                          <span className="font-mono text-[11px] text-text-muted truncate min-w-0" title={d.url}>
                             {d.url.replace(/^https?:\/\//, '')}
                           </span>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
                               type="button"
                               onClick={() => handleCopyLink(d.id, d.url)}
-                              className="px-1.5 py-0.5 rounded text-[10px] font-mono text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors"
-                              title="Copy URL to clipboard"
+                              className="btn-ghost px-1.5 py-0.5 text-[10px] font-mono"
+                              aria-label={copiedId === d.id ? `${d.label} URL copied` : `Copy ${d.label} URL`}
                             >
                               {copiedId === d.id ? 'Copied' : 'Copy'}
                             </button>
@@ -424,17 +407,18 @@ export default function DeliverablesPinnedBoard({
                               href={d.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="px-1.5 py-0.5 rounded text-[10px] font-medium text-brand-accent hover:text-white bg-brand-primary/10 hover:bg-brand-primary/20 border border-brand-primary/30 transition-colors inline-flex items-center gap-0.5"
+                              className="btn px-1.5 py-0.5 text-[10px] text-brand-accent border-brand-accent/70 hover:bg-brand-accent/10"
                             >
                               <span>Open</span>
-                              <span>↗</span>
+                              <span aria-hidden="true">↗</span>
+                              <span className="sr-only">{d.label} (opens in new tab)</span>
                             </a>
                           </div>
                         </div>
                       ) : (
-                        <div className="border border-dashed border-border-subtle/70 rounded p-1.5 text-center text-[11px] text-text-muted">
+                        <p className="border border-dashed border-border-strong px-1.5 py-1 text-[11px] text-text-muted">
                           {canEdit ? 'No URL linked' : 'Pending link'}
-                        </div>
+                        </p>
                       )}
                     </div>
                   )}
@@ -442,7 +426,7 @@ export default function DeliverablesPinnedBoard({
 
                 {/* Footer Edit Affordance (Only for Team Creator) */}
                 {!isEditing && (
-                  <div className="flex items-center justify-between pt-2 mt-2 border-t border-border-subtle/60 text-[11px]">
+                  <div className="flex items-center justify-between pt-2 mt-2 border-t border-border-subtle text-[11px]">
                     <span className="text-[10px] font-mono text-text-muted uppercase">
                       {d.id}
                     </span>
@@ -450,24 +434,25 @@ export default function DeliverablesPinnedBoard({
                       <button
                         type="button"
                         onClick={() => startEdit(d)}
-                        className="text-brand-accent hover:text-white transition-colors font-medium hover:underline flex items-center gap-1"
+                        className="link font-semibold no-underline hover:underline"
+                        aria-label={saveSuccessId === d.id ? `${d.label} saved` : `${d.url ? 'Edit' : 'Set'} ${d.label} link`}
                       >
                         {saveSuccessId === d.id ? (
-                          <span className="text-emerald-400">✓ Saved</span>
+                          <span className="text-status-success">✓ Saved</span>
                         ) : (
                           <span>{d.url ? 'Edit' : '+ Set Link'}</span>
                         )}
                       </button>
                     ) : (
-                      <span className="text-[10px] text-text-muted/60 italic">Read-only</span>
+                      <span className="text-[10px] text-text-muted italic">Read-only</span>
                     )}
                   </div>
                 )}
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
-    </div>
+    </section>
   );
 }

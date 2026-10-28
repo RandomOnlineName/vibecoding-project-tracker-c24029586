@@ -67,118 +67,113 @@ export default function ProfilePage({ user, onUpdate, onBack }) {
     }
   }
 
-  const inputCls = 'w-full bg-[#1e1f22] border border-[#3c3f41] rounded px-3 py-2 text-[#dfe1e5] text-sm placeholder-[#5a5d6b] focus:outline-none focus:border-[#4c9ee8] transition-colors';
-  const labelCls = 'block text-[#8c8fa3] text-xs font-medium mb-1 uppercase tracking-wider';
+  const sectionCls = 'border border-border-subtle';
+  const sectionHeadCls = 'px-5 py-2.5 bg-surface-column border-b border-border-strong text-text-primary text-xs font-bold uppercase tracking-wider';
 
   return (
-    <div className="min-h-screen bg-[#1e1f22] text-[#dfe1e5]">
+    <div className="min-h-screen bg-surface-page text-text-primary">
       {/* Header */}
-      <header className="border-b border-[#3c3f41] bg-[#25272b] px-6 py-3 flex items-center gap-4">
-        <button onClick={onBack} className="text-[#8c8fa3] hover:text-[#dfe1e5] text-sm flex items-center gap-1 transition-colors">
+      <header className="border-b border-border-strong bg-surface-column px-4 sm:px-6 h-12 flex items-center gap-4">
+        <button type="button" onClick={onBack} className="link text-sm font-semibold no-underline hover:underline">
           ← Back
         </button>
-        <div className="text-[#dfe1e5] font-semibold">Profile Settings</div>
+        <span aria-hidden="true" className="h-5 w-px bg-border-strong" />
+        <span className="text-text-primary font-semibold text-sm">Profile Settings</span>
       </header>
 
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Avatar + name header */}
-        <div className="flex items-center gap-4 mb-2">
-          <div className="w-14 h-14 rounded-full bg-[#4c9ee8]/20 border-2 border-[#4c9ee8]/40 flex items-center justify-center">
-            <span className="text-[#4c9ee8] text-2xl font-bold">
-              {user?.name?.charAt(0).toUpperCase() ?? '?'}
-            </span>
-          </div>
+        <div className="flex items-center gap-4 pb-4 border-b border-border-strong">
+          <span aria-hidden="true" className="w-14 h-14 bg-brand-primary text-white flex items-center justify-center text-2xl font-bold chamfer">
+            {user?.name?.charAt(0).toUpperCase() ?? '?'}
+          </span>
           <div>
-            <div className="text-xl font-bold text-white">{user?.name}</div>
-            <div className="text-[#8c8fa3] text-sm">{user?.email}</div>
+            <h1 className="text-xl font-bold text-text-primary">{user?.name}</h1>
+            <p className="text-text-muted text-sm">{user?.email}</p>
           </div>
         </div>
 
         {/* ── Profile section ── */}
-        <div className="bg-[#2b2d30] border border-[#3c3f41] rounded-lg p-6">
-          <h2 className="text-[#dfe1e5] font-semibold text-base mb-4">Profile Details</h2>
+        <section aria-labelledby="profile-heading" className={sectionCls}>
+          <h2 id="profile-heading" className={sectionHeadCls}>Profile Details</h2>
 
-          {profileMsg && <p className="text-[#22c55e] text-sm mb-3">{profileMsg}</p>}
-          {profileErr && <p className="text-[#ef4444] text-sm mb-3">{profileErr}</p>}
+          <div className="p-5">
+            {profileMsg && <p role="status" className="text-status-success text-sm mb-3">{profileMsg}</p>}
+            {profileErr && <p role="alert" className="text-type-urgent text-sm mb-3">{profileErr}</p>}
 
-          <form onSubmit={saveProfile} className="space-y-4">
-            <div>
-              <label className={labelCls}>Full Name</label>
-              <input type="text" value={form.name} onChange={setF('name')} required className={inputCls} placeholder="Alex Reed" />
-            </div>
+            <form onSubmit={saveProfile} className="space-y-4">
+              <div>
+                <label htmlFor="profile-name" className="field-label">Full Name</label>
+                <input id="profile-name" type="text" autoComplete="name" value={form.name} onChange={setF('name')} required className="field" placeholder="Alex Reed" />
+              </div>
 
-            <div>
-              <label className={labelCls}>Email</label>
-              <input type="email" value={user?.email ?? ''} readOnly disabled
-                className={`${inputCls} opacity-50 cursor-not-allowed`} />
-              <p className="text-[#5a5d6b] text-xs mt-1">Email cannot be changed after registration.</p>
-            </div>
+              <div>
+                <label htmlFor="profile-email" className="field-label">Email</label>
+                <input id="profile-email" type="email" value={user?.email ?? ''} readOnly disabled aria-describedby="profile-email-hint"
+                  className="field" />
+                <p id="profile-email-hint" className="text-text-muted text-xs mt-1">Email cannot be changed after registration.</p>
+              </div>
 
-            <div>
-              <label className={labelCls}>GitHub Handle</label>
-              <input type="text" value={form.githubHandle} onChange={setF('githubHandle')} className={inputCls} placeholder="@your-handle" />
-            </div>
+              <div>
+                <label htmlFor="profile-github" className="field-label">GitHub Handle</label>
+                <input id="profile-github" type="text" value={form.githubHandle} onChange={setF('githubHandle')} className="field" placeholder="@your-handle" />
+              </div>
 
-            <div>
-              <label className={labelCls}>VS Code / Cursor Profile</label>
-              <input type="text" value={form.vsCodeProfile} onChange={setF('vsCodeProfile')} className={inputCls} placeholder="profile name or email" />
-            </div>
+              <div>
+                <label htmlFor="profile-vscode" className="field-label">VS Code / Cursor Profile</label>
+                <input id="profile-vscode" type="text" value={form.vsCodeProfile} onChange={setF('vsCodeProfile')} className="field" placeholder="profile name or email" />
+              </div>
 
-            <div>
-              <label className={labelCls}>Default AI Tool</label>
-              <select
-                value={form.defaultLlmTool}
-                onChange={setF('defaultLlmTool')}
-                className={inputCls}
-                style={{ color: form.defaultLlmTool ? '#dfe1e5' : '#5a5d6b' }}
-              >
-                <option value="" style={{ background: '#1e1f22', color: '#5a5d6b' }}>None / not set</option>
-                {LLM_TOOLS.map(t => (
-                  <option key={t} value={t} style={{ background: '#1e1f22', color: '#dfe1e5' }}>{t}</option>
-                ))}
-              </select>
-            </div>
+              <div>
+                <label htmlFor="profile-tool" className="field-label">Default AI Tool</label>
+                <select
+                  id="profile-tool"
+                  value={form.defaultLlmTool}
+                  onChange={setF('defaultLlmTool')}
+                  className="field"
+                >
+                  <option value="">None / not set</option>
+                  {LLM_TOOLS.map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
 
-            <button
-              type="submit"
-              disabled={profileBusy}
-              className="bg-[#4c9ee8] hover:bg-[#5aadff] disabled:opacity-50 text-white font-semibold py-2 px-5 rounded text-sm transition-colors"
-            >
-              {profileBusy ? 'Saving…' : 'Save Profile'}
-            </button>
-          </form>
-        </div>
+              <button type="submit" disabled={profileBusy} className="btn-primary py-2 px-5 text-sm">
+                {profileBusy ? 'Saving…' : 'Save Profile'}
+              </button>
+            </form>
+          </div>
+        </section>
 
         {/* ── Password section ── */}
-        <div className="bg-[#2b2d30] border border-[#3c3f41] rounded-lg p-6">
-          <h2 className="text-[#dfe1e5] font-semibold text-base mb-4">Change Password</h2>
+        <section aria-labelledby="password-heading" className={sectionCls}>
+          <h2 id="password-heading" className={sectionHeadCls}>Change Password</h2>
 
-          {pwMsg && <p className="text-[#22c55e] text-sm mb-3">{pwMsg}</p>}
-          {pwErr && <p className="text-[#ef4444] text-sm mb-3">{pwErr}</p>}
+          <div className="p-5">
+            {pwMsg && <p role="status" className="text-status-success text-sm mb-3">{pwMsg}</p>}
+            {pwErr && <p role="alert" className="text-type-urgent text-sm mb-3">{pwErr}</p>}
 
-          <form onSubmit={changePassword} className="space-y-4">
-            <div>
-              <label className={labelCls}>Current Password</label>
-              <input type="password" value={pwForm.currentPassword} onChange={setPw('currentPassword')} required className={inputCls} placeholder="••••••••" />
-            </div>
-            <div>
-              <label className={labelCls}>New Password</label>
-              <input type="password" value={pwForm.password} onChange={setPw('password')} required className={inputCls} placeholder="Min. 8 characters" />
-            </div>
-            <div>
-              <label className={labelCls}>Confirm New Password</label>
-              <input type="password" value={pwForm.confirm} onChange={setPw('confirm')} required className={inputCls} placeholder="••••••••" />
-            </div>
-            <button
-              type="submit"
-              disabled={pwBusy}
-              className="bg-[#3c3f41] hover:bg-[#4c4f52] disabled:opacity-50 text-[#dfe1e5] font-semibold py-2 px-5 rounded text-sm transition-colors"
-            >
-              {pwBusy ? 'Changing…' : 'Change Password'}
-            </button>
-          </form>
-        </div>
-      </div>
+            <form onSubmit={changePassword} className="space-y-4">
+              <div>
+                <label htmlFor="pw-current" className="field-label">Current Password</label>
+                <input id="pw-current" type="password" autoComplete="current-password" value={pwForm.currentPassword} onChange={setPw('currentPassword')} required className="field" placeholder="••••••••" />
+              </div>
+              <div>
+                <label htmlFor="pw-new" className="field-label">New Password</label>
+                <input id="pw-new" type="password" autoComplete="new-password" value={pwForm.password} onChange={setPw('password')} required className="field" placeholder="Min. 8 characters" />
+              </div>
+              <div>
+                <label htmlFor="pw-confirm" className="field-label">Confirm New Password</label>
+                <input id="pw-confirm" type="password" autoComplete="new-password" value={pwForm.confirm} onChange={setPw('confirm')} required className="field" placeholder="••••••••" />
+              </div>
+              <button type="submit" disabled={pwBusy} className="btn-secondary py-2 px-5 text-sm">
+                {pwBusy ? 'Changing…' : 'Change Password'}
+              </button>
+            </form>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

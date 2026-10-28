@@ -3,6 +3,11 @@
  * Props: { onLogin, onGoRegister, onAcceptInvite? }
  */
 import { useState } from 'react';
+import Wordmark from '../components/Wordmark.jsx';
+
+// Seeded team creator account for demos (see services/seedData.js)
+const DEMO_EMAIL    = 'alex.reed@vibetrack.dev';
+const DEMO_PASSWORD = 'password123';
 
 export default function LoginPage({ onLogin, onGoRegister }) {
   const [email, setEmail]       = useState('');
@@ -24,70 +29,87 @@ export default function LoginPage({ onLogin, onGoRegister }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#1e1f22] flex items-center justify-center px-4">
+    <main className="min-h-screen bg-surface-page flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         {/* Logo / title */}
-        <div className="text-center mb-8">
-          <div className="text-3xl font-bold text-white tracking-tight">⚡ VibeCoder</div>
-          <p className="text-[#8c8fa3] text-sm mt-1">Project Tracker</p>
+        <div className="mb-6">
+          <Wordmark size="lg" />
+          <p className="text-text-muted text-sm mt-1">Project Tracker</p>
         </div>
 
-        <div className="bg-[#2b2d30] border border-[#3c3f41] rounded-lg p-6">
-          <h2 className="text-[#dfe1e5] font-semibold text-lg mb-5">Sign in</h2>
+        <section aria-labelledby="signin-heading" className="bg-surface-column border border-border-subtle border-t-2 border-t-brand-accent p-6">
+          <h1 id="signin-heading" className="text-text-primary font-bold text-lg mb-5">Sign in</h1>
 
           {error && (
-            <div className="mb-4 px-3 py-2 bg-[#3c1a1a] border border-[#ef4444]/40 rounded text-[#ef4444] text-sm">
+            <p role="alert" className="mb-4 px-3 py-2 bg-type-urgent/10 border-l-4 border-type-urgent text-type-urgent text-sm">
               {error}
-            </div>
+            </p>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-[#8c8fa3] text-xs font-medium mb-1 uppercase tracking-wider">
-                Email
-              </label>
+              <label htmlFor="login-email" className="field-label">Email</label>
               <input
+                id="login-email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
                 autoFocus
-                className="w-full bg-[#1e1f22] border border-[#3c3f41] rounded px-3 py-2 text-[#dfe1e5] text-sm placeholder-[#5a5d6b] focus:outline-none focus:border-[#4c9ee8] transition-colors"
+                className="field"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label className="block text-[#8c8fa3] text-xs font-medium mb-1 uppercase tracking-wider">
-                Password
-              </label>
+              <label htmlFor="login-password" className="field-label">Password</label>
               <input
+                id="login-password"
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                className="w-full bg-[#1e1f22] border border-[#3c3f41] rounded px-3 py-2 text-[#dfe1e5] text-sm placeholder-[#5a5d6b] focus:outline-none focus:border-[#4c9ee8] transition-colors"
+                className="field"
                 placeholder="••••••••"
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full bg-[#4c9ee8] hover:bg-[#5aadff] disabled:opacity-50 text-white font-semibold py-2 rounded text-sm transition-colors"
-            >
+            <button type="submit" disabled={busy} className="btn-primary w-full py-2 text-sm">
               {busy ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
-        </div>
+        </section>
 
-        <p className="text-center text-[#8c8fa3] text-sm mt-4">
+        {/* Demo credentials */}
+        <aside aria-labelledby="demo-heading" className="mt-4 border border-dashed border-border-strong p-4 text-sm">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <h2 id="demo-heading" className="text-brand-accent text-xs font-bold uppercase tracking-wider">Demo login</h2>
+            <button
+              type="button"
+              onClick={() => { setEmail(DEMO_EMAIL); setPassword(DEMO_PASSWORD); setError(''); }}
+              className="link text-xs font-semibold"
+            >
+              Use demo account
+            </button>
+          </div>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+            <dt className="text-text-muted">Email</dt>
+            <dd className="font-mono text-text-primary break-all">{DEMO_EMAIL}</dd>
+            <dt className="text-text-muted">Password</dt>
+            <dd className="font-mono text-text-primary">{DEMO_PASSWORD}</dd>
+          </dl>
+          <p className="text-text-muted text-[11px] mt-2">Alex Reed · creator of the UXD Hackathon 2026 team</p>
+        </aside>
+
+        <p className="text-text-muted text-sm mt-4">
           Don't have an account?{' '}
-          <button onClick={onGoRegister} className="text-[#4c9ee8] hover:underline">
+          <button type="button" onClick={onGoRegister} className="link">
             Create one
           </button>
         </p>
       </div>
-    </div>
+    </main>
   );
 }

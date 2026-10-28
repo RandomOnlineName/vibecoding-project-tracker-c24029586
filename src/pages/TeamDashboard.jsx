@@ -3,46 +3,45 @@
  * and see the members of the active team.
  */
 import { useState } from 'react';
+import Wordmark from '../components/Wordmark.jsx';
 
 function MemberRow({ member, isCurrentUser }) {
   return (
-    <div className="flex items-center gap-3 py-2.5 px-3 rounded hover:bg-[#1e1f22]/50 transition-colors">
-      {/* Avatar */}
-      <div className="w-8 h-8 rounded-full bg-[#4c9ee8]/20 border border-[#4c9ee8]/30 flex items-center justify-center flex-shrink-0">
-        <span className="text-[#4c9ee8] text-xs font-bold">
-          {member.name.charAt(0).toUpperCase()}
-        </span>
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-[#dfe1e5] text-sm font-medium truncate">{member.name}</span>
+    <tr className="hover:bg-surface-elevated transition-colors">
+      <th scope="row" className="px-4 py-2.5 text-left font-normal">
+        <div className="flex items-center gap-3">
+          {/* Avatar */}
+          <span aria-hidden="true" className="w-7 h-7 bg-brand-primary text-white flex items-center justify-center shrink-0 text-xs font-bold">
+            {member.name.charAt(0).toUpperCase()}
+          </span>
+          <span className="text-text-primary text-sm font-semibold truncate">{member.name}</span>
           {isCurrentUser && (
-            <span className="text-[10px] bg-[#4c9ee8]/15 text-[#4c9ee8] px-1.5 py-0.5 rounded font-medium">
-              You
-            </span>
-          )}
-          {member.role === 'owner' && (
-            <span className="text-[10px] bg-[#f59e0b]/15 text-[#f59e0b] px-1.5 py-0.5 rounded font-medium">
-              Owner
-            </span>
+            <span className="tag text-brand-accent border-brand-accent/70">You</span>
           )}
         </div>
-        <div className="text-[#8c8fa3] text-xs truncate">{member.email}</div>
-      </div>
-
-      {member.githubHandle && (
-        <a
-          href={`https://github.com/${member.githubHandle.replace('@', '')}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[#8c8fa3] hover:text-[#dfe1e5] text-xs shrink-0"
-          title="GitHub"
-        >
-          GitHub ↗
-        </a>
-      )}
-    </div>
+      </th>
+      <td className="px-4 py-2.5 text-text-muted text-xs truncate max-w-[14rem]">{member.email}</td>
+      <td className="px-4 py-2.5">
+        {member.role === 'owner' ? (
+          <span className="tag text-status-warning border-status-warning/70">Owner</span>
+        ) : (
+          <span className="text-text-muted text-xs capitalize">{member.role || 'Member'}</span>
+        )}
+      </td>
+      <td className="px-4 py-2.5 text-right">
+        {member.githubHandle && (
+          <a
+            href={`https://github.com/${member.githubHandle.replace('@', '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="link text-xs"
+          >
+            GitHub<span aria-hidden="true"> ↗</span>
+            <span className="sr-only"> profile for {member.name} (opens in new tab)</span>
+          </a>
+        )}
+      </td>
+    </tr>
   );
 }
 
@@ -87,7 +86,7 @@ export default function TeamDashboard({ user, teams, activeTeam, teamDetail, onS
         setInviteResult({ message: `${inviteEmail} was added to the team directly (they already have an account).` });
       } else {
         // Build invite link for the frontend
-        const link = `${window.location.origin}${window.location.pathname}#/accept-invite?token=${result.inviteToken}`;
+        const link = `${window.location.origin}${window.location.pathname}#/accept-invite?token=${result.token}`;
         setInviteResult({ link, message: `Invite created! Share this link with ${inviteEmail}:` });
       }
       setInviteEmail('');
@@ -99,22 +98,26 @@ export default function TeamDashboard({ user, teams, activeTeam, teamDetail, onS
   }
 
   return (
-    <div className="min-h-screen bg-[#1e1f22] text-[#dfe1e5]">
+    <div className="min-h-screen bg-surface-page text-text-primary">
+      <a href="#teams-main" className="skip-link">Skip to content</a>
       {/* Header */}
-      <header className="border-b border-[#3c3f41] bg-[#25272b] px-6 py-3 flex items-center gap-4">
-        <div className="text-lg font-bold text-white tracking-tight">⚡ VibeCoder</div>
+      <header className="border-b border-border-strong bg-surface-column px-4 sm:px-6 h-12 flex items-center gap-4">
+        <Wordmark />
         <div className="flex-1" />
-        <span className="text-[#8c8fa3] text-sm">{user?.name}</span>
+        <span className="text-text-muted text-sm">{user?.name}</span>
       </header>
 
-      <div className="max-w-5xl mx-auto px-6 py-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div id="teams-main" className="max-w-5xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* ── Left: Teams list ── */}
-        <div className="md:col-span-1">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[#8c8fa3] text-xs font-semibold uppercase tracking-wider">Your Teams</h2>
+        <nav aria-labelledby="teams-heading" className="md:col-span-1">
+          <div className="flex items-center justify-between pb-2 border-b border-border-strong">
+            <h2 id="teams-heading" className="text-text-muted text-xs font-bold uppercase tracking-wider">Your Teams</h2>
             <button
+              type="button"
+              aria-expanded={creating}
+              aria-controls="create-team-form"
               onClick={() => setCreating(c => !c)}
-              className="text-[#4c9ee8] hover:text-[#5aadff] text-xs font-medium"
+              className="link text-xs font-semibold no-underline hover:underline"
             >
               {creating ? 'Cancel' : '+ New Team'}
             </button>
@@ -122,159 +125,174 @@ export default function TeamDashboard({ user, teams, activeTeam, teamDetail, onS
 
           {/* Create team form */}
           {creating && (
-            <div className="bg-[#2b2d30] border border-[#3c3f41] rounded-lg p-4 mb-3">
+            <form id="create-team-form" onSubmit={handleCreate} className="bg-surface-column border-b border-border-subtle p-3 space-y-2">
               {createErr && (
-                <p className="text-[#ef4444] text-xs mb-2">{createErr}</p>
+                <p role="alert" className="text-type-urgent text-xs">{createErr}</p>
               )}
-              <form onSubmit={handleCreate} className="space-y-2">
-                <input
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  placeholder="Team name"
-                  required
-                  autoFocus
-                  className="w-full bg-[#1e1f22] border border-[#3c3f41] rounded px-3 py-1.5 text-sm text-[#dfe1e5] placeholder-[#5a5d6b] focus:outline-none focus:border-[#4c9ee8]"
-                />
-                <input
-                  value={newDesc}
-                  onChange={e => setNewDesc(e.target.value)}
-                  placeholder="Description (optional)"
-                  className="w-full bg-[#1e1f22] border border-[#3c3f41] rounded px-3 py-1.5 text-sm text-[#dfe1e5] placeholder-[#5a5d6b] focus:outline-none focus:border-[#4c9ee8]"
-                />
-                <button
-                  type="submit"
-                  disabled={createBusy}
-                  className="w-full bg-[#4c9ee8] hover:bg-[#5aadff] disabled:opacity-50 text-white py-1.5 rounded text-sm font-semibold transition-colors"
-                >
-                  {createBusy ? 'Creating…' : 'Create'}
-                </button>
-              </form>
-            </div>
+              <label htmlFor="new-team-name" className="sr-only">Team name</label>
+              <input
+                id="new-team-name"
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                placeholder="Team name"
+                required
+                autoFocus
+                className="field py-1.5"
+              />
+              <label htmlFor="new-team-desc" className="sr-only">Description (optional)</label>
+              <input
+                id="new-team-desc"
+                value={newDesc}
+                onChange={e => setNewDesc(e.target.value)}
+                placeholder="Description (optional)"
+                className="field py-1.5"
+              />
+              <button type="submit" disabled={createBusy} className="btn-primary w-full py-1.5 text-sm">
+                {createBusy ? 'Creating…' : 'Create'}
+              </button>
+            </form>
           )}
 
           {/* Teams list */}
-          <div className="space-y-1">
-            {teams.length === 0 && !creating && (
-              <p className="text-[#8c8fa3] text-sm py-4 text-center">
-                No teams yet.
-                <button onClick={() => setCreating(true)} className="text-[#4c9ee8] hover:underline ml-1">
-                  Create one
-                </button>
-              </p>
-            )}
-            {teams.map(team => (
-              <button
-                key={team.id}
-                onClick={() => onSelectTeam(team.id)}
-                className={`w-full text-left px-3 py-2.5 rounded transition-colors border ${
-                  activeTeam?.id === team.id
-                    ? 'bg-[#2b2d30] border-[#4c9ee8]/50 text-[#dfe1e5]'
-                    : 'bg-transparent border-transparent text-[#8c8fa3] hover:bg-[#2b2d30] hover:text-[#dfe1e5]'
-                }`}
-              >
-                <div className="font-medium text-sm">{team.name}</div>
-                {team.role === 'owner' && (
-                  <div className="text-[10px] text-[#f59e0b] mt-0.5">Owner</div>
-                )}
+          {teams.length === 0 && !creating && (
+            <p className="text-text-muted text-sm py-4">
+              No teams yet.
+              <button type="button" onClick={() => setCreating(true)} className="link ml-1">
+                Create one
               </button>
-            ))}
-          </div>
-        </div>
+            </p>
+          )}
+          <ul className="divide-y divide-border-subtle">
+            {teams.map(team => {
+              const active = activeTeam?.id === team.id;
+              return (
+                <li key={team.id}>
+                  <button
+                    type="button"
+                    aria-current={active ? 'true' : undefined}
+                    onClick={() => onSelectTeam(team.id)}
+                    className={`w-full text-left px-3 py-2.5 border-l-4 transition-colors ${
+                      active
+                        ? 'bg-surface-column border-l-brand-accent text-text-primary'
+                        : 'border-l-transparent text-text-muted hover:bg-surface-column hover:text-text-primary'
+                    }`}
+                  >
+                    <span className="block font-semibold text-sm">{team.name}</span>
+                    {team.role === 'owner' && (
+                      <span className="block text-[11px] text-status-warning mt-0.5">Owner</span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
 
         {/* ── Right: Active team detail ── */}
-        <div className="md:col-span-2">
+        <main className="md:col-span-2">
           {!activeTeam ? (
-            <div className="bg-[#2b2d30] border border-[#3c3f41] rounded-lg p-8 text-center">
-              <p className="text-[#8c8fa3]">Select or create a team to get started.</p>
-            </div>
+            <p className="border border-dashed border-border-strong p-8 text-center text-text-muted">
+              Select or create a team to get started.
+            </p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {/* Team header + Go to board */}
-              <div className="bg-[#2b2d30] border border-[#3c3f41] rounded-lg p-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h1 className="text-xl font-bold text-white">{activeTeam.name}</h1>
-                    {activeTeam.description && (
-                      <p className="text-[#8c8fa3] text-sm mt-1">{activeTeam.description}</p>
-                    )}
-                    <p className="text-[#5a5d6b] text-xs mt-2">
-                      {teamDetail?.members?.length ?? '?'} member{(teamDetail?.members?.length ?? 0) !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <button
-                    onClick={onGoToBoard}
-                    className="bg-[#4c9ee8] hover:bg-[#5aadff] text-white px-4 py-2 rounded text-sm font-semibold transition-colors flex items-center gap-2"
-                  >
-                    Open Board →
-                  </button>
+              <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-border-strong">
+                <div>
+                  <h1 className="text-xl font-bold text-text-primary">{activeTeam.name}</h1>
+                  {activeTeam.description && (
+                    <p className="text-text-muted text-sm mt-1">{activeTeam.description}</p>
+                  )}
+                  <p className="text-text-muted text-xs mt-2 font-mono">
+                    {teamDetail?.members?.length ?? '?'} member{(teamDetail?.members?.length ?? 0) !== 1 ? 's' : ''}
+                  </p>
                 </div>
+                <button type="button" onClick={onGoToBoard} className="btn-primary px-4 py-2 text-sm">
+                  Open Board <span aria-hidden="true">→</span>
+                </button>
               </div>
 
               {/* Members */}
-              <div className="bg-[#2b2d30] border border-[#3c3f41] rounded-lg overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#3c3f41]">
-                  <h3 className="text-[#dfe1e5] font-semibold text-sm">Members</h3>
+              <section aria-labelledby="members-heading" className="border border-border-subtle">
+                <h2 id="members-heading" className="px-4 py-2.5 bg-surface-column border-b border-border-strong text-text-primary text-xs font-bold uppercase tracking-wider">
+                  Members
+                </h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sr-only">
+                      <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Role</th>
+                        <th scope="col">Links</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-subtle">
+                      {(teamDetail?.members ?? []).map(m => (
+                        <MemberRow key={m.id} member={m} isCurrentUser={m.id === user?.id} />
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="divide-y divide-[#3c3f41]/50 px-1 py-1">
-                  {(teamDetail?.members ?? []).map(m => (
-                    <MemberRow key={m.id} member={m} isCurrentUser={m.id === user?.id} />
-                  ))}
-                </div>
-              </div>
+              </section>
 
               {/* Invite */}
-              <div className="bg-[#2b2d30] border border-[#3c3f41] rounded-lg p-5">
-                <h3 className="text-[#dfe1e5] font-semibold text-sm mb-3">Invite a Member</h3>
+              <section aria-labelledby="invite-heading" className="border border-border-subtle">
+                <h2 id="invite-heading" className="px-4 py-2.5 bg-surface-column border-b border-border-strong text-text-primary text-xs font-bold uppercase tracking-wider">
+                  Invite a Member
+                </h2>
 
-                {inviteErr && (
-                  <div className="mb-3 px-3 py-2 bg-[#3c1a1a] border border-[#ef4444]/40 rounded text-[#ef4444] text-sm">
-                    {inviteErr}
-                  </div>
-                )}
+                <div className="p-4">
+                  {inviteErr && (
+                    <p role="alert" className="mb-3 px-3 py-2 bg-type-urgent/10 border-l-4 border-type-urgent text-type-urgent text-sm">
+                      {inviteErr}
+                    </p>
+                  )}
 
-                {inviteResult && (
-                  <div className="mb-3 px-3 py-2 bg-[#1a3c1a] border border-[#22c55e]/40 rounded text-sm">
-                    <p className="text-[#22c55e] mb-1">{inviteResult.message}</p>
-                    {inviteResult.link && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <code className="bg-[#1e1f22] text-[#a8b1c2] text-xs px-2 py-1 rounded flex-1 truncate block">
-                          {inviteResult.link}
-                        </code>
-                        <button
-                          onClick={() => { navigator.clipboard.writeText(inviteResult.link); }}
-                          className="text-[#4c9ee8] hover:text-[#5aadff] text-xs shrink-0 font-medium"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  {inviteResult && (
+                    <div role="status" className="mb-3 px-3 py-2 bg-status-success/10 border-l-4 border-status-success text-sm">
+                      <p className="text-status-success mb-1">{inviteResult.message}</p>
+                      {inviteResult.link && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <code className="bg-surface-code border border-border-subtle text-text-primary text-xs px-2 py-1 flex-1 truncate block">
+                            {inviteResult.link}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => { navigator.clipboard.writeText(inviteResult.link); }}
+                            className="btn-secondary py-1 shrink-0"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                <form onSubmit={handleInvite} className="flex gap-2">
-                  <input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={e => setInviteEmail(e.target.value)}
-                    placeholder="teammate@example.com"
-                    required
-                    className="flex-1 bg-[#1e1f22] border border-[#3c3f41] rounded px-3 py-2 text-sm text-[#dfe1e5] placeholder-[#5a5d6b] focus:outline-none focus:border-[#4c9ee8]"
-                  />
-                  <button
-                    type="submit"
-                    disabled={inviteBusy}
-                    className="bg-[#3c3f41] hover:bg-[#4c4f52] disabled:opacity-50 text-[#dfe1e5] px-4 py-2 rounded text-sm font-semibold transition-colors"
-                  >
-                    {inviteBusy ? '…' : 'Invite'}
-                  </button>
-                </form>
-                <p className="text-[#5a5d6b] text-xs mt-2">
-                  If they already have an account, they'll be added immediately. Otherwise, share the invite link.
-                </p>
-              </div>
+                  <form onSubmit={handleInvite} className="flex gap-2">
+                    <label htmlFor="invite-email" className="sr-only">Teammate email</label>
+                    <input
+                      id="invite-email"
+                      type="email"
+                      value={inviteEmail}
+                      onChange={e => setInviteEmail(e.target.value)}
+                      placeholder="teammate@example.com"
+                      required
+                      aria-describedby="invite-hint"
+                      className="field flex-1"
+                    />
+                    <button type="submit" disabled={inviteBusy} className="btn-secondary px-4 text-sm">
+                      {inviteBusy ? '…' : 'Invite'}
+                    </button>
+                  </form>
+                  <p id="invite-hint" className="text-text-muted text-xs mt-2">
+                    If they already have an account, they'll be added immediately. Otherwise, share the invite link.
+                  </p>
+                </div>
+              </section>
             </div>
           )}
-        </div>
+        </main>
       </div>
     </div>
   );

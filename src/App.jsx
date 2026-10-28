@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './hooks/useAuth.js';
 import { useTeams } from './hooks/useTeams.js';
 import LoginPage from './pages/LoginPage.jsx';
@@ -7,6 +7,7 @@ import TeamDashboard from './pages/TeamDashboard.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 
 import DeliverablesPinnedBoard from './components/DeliverablesPinnedBoard.jsx';
+import Wordmark from './components/Wordmark.jsx';
 
 /**
  * Vibecoding Project Tracker
@@ -36,40 +37,54 @@ import DeliverablesPinnedBoard from './components/DeliverablesPinnedBoard.jsx';
 // The four columns of the board, in render order.
 export const STAGES = [
   { id: 'todo',        label: 'To Do',       color: 'bg-slate-400' },
-  { id: 'in-progress', label: 'In Progress', color: 'bg-brand-primary' },
-  { id: 'review',      label: 'Review',      color: 'bg-due-warning' },
-  { id: 'done',        label: 'Done',        color: 'bg-due-safe' },
+  { id: 'in-progress', label: 'In Progress', color: 'bg-brand-accent' },
+  { id: 'review',      label: 'Review',      color: 'bg-status-warning' },
+  { id: 'done',        label: 'Done',        color: 'bg-status-success' },
 ];
 
 export const AI_TOOLS = ['Claude', 'Cursor', 'ChatGPT', 'Copilot', 'Gemini', 'Other'];
 
+// Scale 1 (DESIGN.md §2.2): warm = things to fix, cool = things being built
+export const TASK_TYPES = {
+  urgent:     { label: 'Urgent fix', tagClass: 'text-type-urgent border-type-urgent/70 bg-type-urgent/10',             swatch: 'bg-type-urgent' },
+  bug:        { label: 'Bug',        tagClass: 'text-type-bug border-type-bug/70 bg-type-bug/10',                      swatch: 'bg-type-bug' },
+  feature:    { label: 'Feature',    tagClass: 'text-type-feature border-type-feature/70 bg-type-feature/10',          swatch: 'bg-type-feature' },
+  additional: { label: 'Additional', tagClass: 'text-type-additional border-type-additional/70 bg-type-additional/10', swatch: 'bg-type-additional' },
+};
+
+export function TypeTag({ type }) {
+  const cfg = TASK_TYPES[type] || TASK_TYPES.feature;
+  return (
+    <span className={`tag ${cfg.tagClass}`}>
+      <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${cfg.swatch}`} />
+      {cfg.label}
+    </span>
+  );
+}
+
 /**
  * Calculates Task Significance & Urgency according to DESIGN.md §2.3:
- *   - Need Today (< 24h / overdue): Rose-500
- *   - Needed within 5 Days: Amber-500
- *   - Needed within 2 Weeks: Sky-500
- *   - Later (> 14d / no date): Slate-600
+ *   - Need Today (< 24h / overdue): Rose
+ *   - Needed within 5 Days: Amber
+ *   - Needed within 2 Weeks: Sky
+ *   - Later (> 14d / no date): Slate
  *   - Done tasks: Slate neutral (overrides urgency)
  */
+const SIGNIFICANCE_STYLES = {
+  today:   { stripeClass: 'bg-significance-today',  chipClass: 'text-significance-today border-significance-today/70 bg-significance-today/10',    dotColor: 'bg-significance-today' },
+  soon:    { stripeClass: 'bg-significance-soon',   chipClass: 'text-significance-soon border-significance-soon/70 bg-significance-soon/10',       dotColor: 'bg-significance-soon' },
+  sprint:  { stripeClass: 'bg-significance-sprint', chipClass: 'text-significance-sprint border-significance-sprint/70 bg-significance-sprint/10', dotColor: 'bg-significance-sprint' },
+  later:   { stripeClass: 'bg-slate-500',           chipClass: 'text-significance-later border-border-strong',                                        dotColor: 'bg-slate-400' },
+  neutral: { stripeClass: 'bg-slate-600',           chipClass: 'text-text-muted border-border-strong',                                                dotColor: 'bg-slate-500' },
+};
+
 export function getTaskSignificance(task) {
   if (task.status === 'done') {
-    return {
-      level: 'neutral',
-      label: 'Completed',
-      stripeClass: 'bg-slate-600/70',
-      chipClass: 'text-slate-400 bg-slate-800/40 border-slate-700/50',
-      dotColor: 'bg-slate-500',
-    };
+    return { level: 'neutral', label: 'Completed', ...SIGNIFICANCE_STYLES.neutral };
   }
 
   if (!task.dueDate) {
-    return {
-      level: 'later',
-      label: 'No deadline',
-      stripeClass: 'bg-slate-700/50',
-      chipClass: 'text-text-muted bg-surface-elevated/40 border-border-subtle/50',
-      dotColor: 'bg-slate-600',
-    };
+    return { level: 'later', label: 'No deadline', ...SIGNIFICANCE_STYLES.later, stripeClass: 'bg-slate-700' };
   }
 
   const now = new Date();
@@ -77,13 +92,7 @@ export function getTaskSignificance(task) {
   const parts = String(task.dueDate).split('-');
 
   if (parts.length !== 3) {
-    return {
-      level: 'later',
-      label: task.dueDate,
-      stripeClass: 'bg-slate-600',
-      chipClass: 'text-slate-400 bg-slate-800/40 border-slate-700/50',
-      dotColor: 'bg-slate-500',
-    };
+    return { level: 'later', label: task.dueDate, ...SIGNIFICANCE_STYLES.later };
   }
 
   const [year, month, day] = parts.map(Number);
@@ -94,34 +103,18 @@ export function getTaskSignificance(task) {
     return {
       level: 'today',
       label: diffDays < 0 ? `Overdue (${Math.abs(diffDays)}d)` : 'Need Today',
-      stripeClass: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]',
-      chipClass: 'text-rose-400 bg-rose-500/15 border-rose-500/30 font-medium',
-      dotColor: 'bg-rose-500 animate-pulse',
+      ...SIGNIFICANCE_STYLES.today,
     };
   } else if (diffDays <= 5) {
     return {
       level: 'soon',
       label: diffDays === 1 ? 'Due Tomorrow' : `In ${diffDays} days`,
-      stripeClass: 'bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.3)]',
-      chipClass: 'text-amber-400 bg-amber-500/15 border-amber-500/30 font-medium',
-      dotColor: 'bg-amber-500',
+      ...SIGNIFICANCE_STYLES.soon,
     };
   } else if (diffDays <= 14) {
-    return {
-      level: 'sprint',
-      label: `In ${diffDays} days`,
-      stripeClass: 'bg-sky-500',
-      chipClass: 'text-sky-400 bg-sky-500/15 border-sky-500/30',
-      dotColor: 'bg-sky-500',
-    };
+    return { level: 'sprint', label: `In ${diffDays} days`, ...SIGNIFICANCE_STYLES.sprint };
   } else {
-    return {
-      level: 'later',
-      label: `In ${diffDays} days`,
-      stripeClass: 'bg-slate-600',
-      chipClass: 'text-slate-400 bg-slate-800/40 border-slate-700/50',
-      dotColor: 'bg-slate-500',
-    };
+    return { level: 'later', label: `In ${diffDays} days`, ...SIGNIFICANCE_STYLES.later };
   }
 }
 
@@ -202,81 +195,92 @@ export function useTasks(token, activeTeamId) {
 }
 
 /**
- * Task Card Component with Dual-Scale Color Coding:
- *   - Type Scale: Top Pill Tag (Green for Feature, Orange/Red for Bug)
- *   - Significance Scale: Stripe near the bottom of the card + Due Date Chip
+ * Task row with Dual-Scale Color Coding (DESIGN.md §2.4):
+ *   - Type Scale: rounded tag, top-left
+ *   - Significance Scale: left edge rule + due-date tag
+ * The title button is stretched over the row so the whole row is clickable,
+ * while the reassign <select> sits above it and stays independently focusable.
  */
-export function TaskCard({ task, onClick }) {
-  const isBug = task.type === 'bug' || task.type === 'urgent';
+export function TaskCard({ task, onClick, teamMembers = [], canReassign = false, onReassign }) {
   const significance = getTaskSignificance(task);
 
   return (
-    <div
-      onClick={onClick}
-      className="group bg-surface-card hover:bg-surface-elevated border border-border-subtle hover:border-[#4e5157] rounded-lg p-3.5 shadow-sm transition-all duration-150 relative cursor-pointer select-none flex flex-col justify-between"
-    >
-      <div>
-        {/* Header: Type Pill (Scale 1) & Due Date Chip (Scale 2) */}
-        <div className="flex items-center justify-between gap-2 mb-2">
-          {/* Scale 1: Task Type Pill */}
-          <span
-            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border ${
-              isBug
-                ? 'bg-type-bug/15 text-type-bug border-type-bug/30'
-                : 'bg-type-feature/15 text-type-feature border-type-feature/30'
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                isBug ? 'bg-type-bug' : 'bg-type-feature'
-              }`}
-            />
-            {task.type || 'feature'}
-          </span>
+    <article className="group relative pl-4 pr-3 py-3 bg-surface-page hover:bg-surface-elevated transition-colors">
+      {/* Scale 2: significance rule on the leading edge */}
+      <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${significance.stripeClass}`} />
 
-          {/* Scale 2: Task Significance Due Chip */}
+      <div>
+        {/* Header: Type Tag (Scale 1) & Due Date Tag (Scale 2) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+          <TypeTag type={task.type} />
+
           {task.dueDate && (
-            <span
-              className={`text-[11px] font-mono px-2 py-0.5 rounded-full border flex items-center gap-1.5 transition-colors ${significance.chipClass}`}
-              title={`Deadline: ${task.dueDate} (${significance.label})`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${significance.dotColor}`} />
-              <span>{significance.label}</span>
+            <span className={`tag font-mono normal-case tracking-normal ${significance.chipClass}`}>
+              <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${significance.dotColor}`} />
+              <span className="sr-only">Due: </span>
+              <time dateTime={task.dueDate} title={`Deadline: ${task.dueDate}`}>{significance.label}</time>
             </span>
           )}
         </div>
 
-        {/* Title */}
-        <h3 className="text-sm font-medium text-text-primary mb-1.5 group-hover:text-white transition-colors line-clamp-2">
-          {task.title}
+        {/* Title (stretched link-button) */}
+        <h3 className="text-sm font-semibold leading-snug text-text-primary mb-1 line-clamp-2">
+          <button
+            type="button"
+            onClick={onClick}
+            className="text-left group-hover:underline underline-offset-2 after:absolute after:inset-0 after:content-['']"
+          >
+            {task.title}
+          </button>
         </h3>
 
         {/* Description Preview */}
         {task.description && (
-          <p className="text-xs text-text-muted line-clamp-2 mb-3 leading-relaxed whitespace-pre-line">
+          <p className="text-xs text-text-muted line-clamp-2 mb-2 leading-relaxed whitespace-pre-line">
             {task.description}
           </p>
         )}
       </div>
 
-      {/* Footer Area */}
+      {/* Footer: Assignee & Context Indicators */}
       <div>
-        {/* Assignee & Context Indicator */}
-        <div className="flex items-center justify-between text-[11px] pt-2 border-t border-border-subtle/60 text-text-muted">
-          <div className="flex items-center gap-1.5">
-            <span className="w-5 h-5 rounded-full bg-surface-elevated border border-border-subtle flex items-center justify-center text-[10px] font-semibold text-text-primary uppercase">
+        <div className="flex items-center justify-between gap-2 text-[11px] text-text-muted">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span aria-hidden="true" className="w-5 h-5 shrink-0 bg-surface-card border border-border-strong flex items-center justify-center text-[10px] font-semibold text-text-primary uppercase">
               {(task.assignee || 'Unassigned').slice(0, 2)}
             </span>
-            <span className="truncate max-w-[100px]">{task.assignee || 'Unassigned'}</span>
+            {canReassign ? (
+              <select
+                value={task.assignee || ''}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => onReassign && onReassign(task, e.target.value)}
+                title="Hand off to..."
+                aria-label={`Reassign "${task.title}"`}
+                className="relative z-10 max-w-[120px] truncate bg-transparent hover:bg-surface-card border border-transparent hover:border-border-strong px-1 py-0.5 text-[11px] text-text-muted hover:text-text-primary focus:border-brand-accent cursor-pointer transition-colors"
+              >
+                <option value="">Unassigned</option>
+                {task.assignee && !teamMembers.includes(task.assignee) && (
+                  <option value={task.assignee}>{task.assignee}</option>
+                )}
+                {teamMembers.map((member) => (
+                  <option key={member} value={member}>
+                    {member}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="truncate max-w-[120px]">{task.assignee || 'Unassigned'}</span>
+            )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {task.context && (
               <span
                 className="inline-flex items-center gap-1 text-[11px] text-brand-accent font-medium font-mono"
                 title="Has documentation / prompt context"
               >
                 <svg
+                  aria-hidden="true"
                   className="w-3 h-3"
                   fill="none"
                   stroke="currentColor"
@@ -295,10 +299,10 @@ export function TaskCard({ task, onClick }) {
 
             {task.promptHistory && (
               <span
-                className="inline-flex items-center gap-1 text-[11px] text-purple-400 font-medium font-mono"
+                className="inline-flex items-center gap-1 text-[11px] text-type-additional font-medium font-mono"
                 title="Has prompt history log"
               >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Prompts ({task.promptHistory.length > 999 ? `${Math.round(task.promptHistory.length / 1024)}k` : task.promptHistory.length})
@@ -306,77 +310,75 @@ export function TaskCard({ task, onClick }) {
             )}
           </div>
         </div>
-
-        {/* Urgency / Deadline Stripe near the bottom of the card */}
-        <div
-          className={`h-1.5 w-full rounded-full mt-2.5 transition-colors ${significance.stripeClass}`}
-          title={`Deadline significance: ${significance.label}`}
-        />
       </div>
-    </div>
+    </article>
   );
 }
 
 /**
- * Kanban Column Component
+ * Kanban Column: one cell of the board table. Header row on top, tasks as ruled rows.
  */
-export function KanbanColumn({ stage, tasks, onTaskClick, onAddTask }) {
+export function KanbanColumn({ stage, tasks, onTaskClick, onAddTask, teamMembers, canReassign, onReassign }) {
   const stageTasks = tasks.filter((t) => t.status === stage.id);
+  const headingId = `stage-${stage.id}`;
 
   return (
-    <div className="bg-surface-column border border-border-subtle rounded-xl p-3 flex flex-col min-h-[500px]">
-      {/* Column Header */}
-      <div className="flex items-center justify-between pb-3 mb-3 border-b border-border-subtle/80 px-1">
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${stage.color}`} />
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
-            {stage.label}
-          </h2>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="bg-surface-elevated text-text-muted text-[11px] font-mono px-2 py-0.5 rounded-full border border-border-subtle/60">
-            {stageTasks.length}
+    <section aria-labelledby={headingId} className="bg-surface-page border border-border-subtle flex flex-col min-h-[28rem]">
+      {/* Column header row */}
+      <header className="flex items-center justify-between gap-2 h-10 pl-3 pr-1.5 bg-surface-column border-b border-border-strong">
+        <h2 id={headingId} className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-primary">
+          <span aria-hidden="true" className={`w-2 h-2 rounded-full ${stage.color}`} />
+          {stage.label}
+          <span className="font-mono font-medium text-text-muted">
+            <span className="sr-only">(</span>{stageTasks.length}<span className="sr-only"> tasks)</span>
           </span>
+        </h2>
+        <button
+          type="button"
+          onClick={() => onAddTask(stage.id)}
+          aria-label={`Add task to ${stage.label}`}
+          title={`Add task to ${stage.label}`}
+          className="btn-ghost w-7 h-7 px-0 py-0 text-base leading-none"
+        >
+          +
+        </button>
+      </header>
+
+      {/* Task rows */}
+      {stageTasks.length > 0 ? (
+        <ul className="divide-y divide-border-subtle border-b border-border-subtle">
+          {stageTasks.map((task) => (
+            <li key={task.id}>
+              <TaskCard
+                task={task}
+                onClick={() => onTaskClick && onTaskClick(task)}
+                teamMembers={teamMembers}
+                canReassign={canReassign}
+                onReassign={onReassign}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="px-3 py-6 border-b border-border-subtle text-text-muted text-xs">
+          <p>No tasks in this stage yet</p>
           <button
+            type="button"
             onClick={() => onAddTask(stage.id)}
-            title={`Add task to ${stage.label}`}
-            className="w-6 h-6 rounded-md hover:bg-surface-elevated text-text-muted hover:text-text-primary flex items-center justify-center transition-colors text-sm"
+            className="link mt-1.5 text-xs font-semibold"
           >
-            +
+            + Add Task
           </button>
         </div>
-      </div>
-
-      {/* Task List */}
-      <div className="flex-1 space-y-2.5 overflow-y-auto">
-        {stageTasks.length > 0 ? (
-          stageTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onClick={() => onTaskClick && onTaskClick(task)}
-            />
-          ))
-        ) : (
-          <div className="h-32 flex flex-col items-center justify-center rounded-lg border border-dashed border-border-subtle/60 text-text-muted text-xs p-4 text-center">
-            <span>No tasks in this stage yet</span>
-            <button
-              onClick={() => onAddTask(stage.id)}
-              className="mt-2 text-xs text-brand-primary hover:text-brand-accent transition-colors font-medium"
-            >
-              + Add task
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </section>
   );
 }
 
 /**
  * Full-Page Task Editor Component
  */
-export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) {
+export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack, onSave, onDelete }) {
   const isEditing = Boolean(task?.id);
 
   const [form, setForm] = useState({
@@ -384,7 +386,7 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
     description: task?.description || '',
     type: task?.type || 'feature',
     status: task?.status || 'todo',
-    assignee: task?.assignee || teamMembers[0] || '',
+    assignee: task?.id ? (task.assignee || '') : (task?.assignee || teamMembers[0] || ''),
     dueDate: task?.dueDate || '',
     context: task?.context || '',
     contextTool: task?.contextTool || 'Claude',
@@ -393,6 +395,8 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
 
   const [activeTab, setActiveTab] = useState('both'); // 'both' | 'context' | 'history'
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [copyToast, setCopyToast] = useState(false);
   const [copyHistoryToast, setCopyHistoryToast] = useState(false);
   const [quickPromptText, setQuickPromptText] = useState('');
@@ -416,18 +420,29 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [form, showDeleteConfirm, onBack]);
+  }, [form, saving, showDeleteConfirm, onBack]);
 
-  const handleSave = () => {
-    if (!form.title.trim()) return;
+  const handleSave = async () => {
+    if (!form.title.trim() || saving) return;
 
-    onSave({
-      ...form,
-      title: form.title.trim(),
-      dueDate: form.dueDate || null,
-      contextUpdatedAt: form.context ? new Date().toISOString() : null,
-      promptHistory: form.promptHistory || '',
-    });
+    const contextChanged = form.context !== (task?.context || '');
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onSave({
+        ...form,
+        title: form.title.trim(),
+        dueDate: form.dueDate || null,
+        contextUpdatedAt: !form.context
+          ? null
+          : contextChanged ? new Date().toISOString() : (task?.contextUpdatedAt || null),
+        promptHistory: form.promptHistory || '',
+      });
+    } catch (e) {
+      setSaveError(e.message || 'Failed to save task');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCopyContext = async () => {
@@ -467,162 +482,146 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
     setShowQuickPromptBox(false);
   };
 
-  const handleDelete = () => {
-    if (onDelete && task?.id) {
-      onDelete(task.id);
+  const handleDelete = async () => {
+    if (!onDelete || !task?.id) return;
+    setSaveError('');
+    try {
+      await onDelete(task.id);
+    } catch (e) {
+      setSaveError(e.message || 'Failed to delete task');
+      setShowDeleteConfirm(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-surface-page text-text-primary flex flex-col animate-fade-in">
-      {/* Top Navigation Bar */}
-      <nav className="sticky top-0 z-40 bg-surface-column/95 backdrop-blur border-b border-border-subtle px-6 py-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-subtle text-xs font-medium text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors"
-            title="Return to Kanban board (Esc)"
-          >
-            <span>&larr;</span>
-            <span>Back to Board</span>
-          </button>
-          <span className="text-border-subtle">/</span>
-          <span className="text-xs font-mono text-text-muted">
-            {isEditing ? (task.id || 'Task') : 'New Task'}
-          </span>
-          <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider border ${
-              form.type === 'bug' || form.type === 'urgent'
-                ? 'bg-type-bug/15 text-type-bug border-type-bug/30'
-                : 'bg-type-feature/15 text-type-feature border-type-feature/30'
-            }`}
-          >
-            {form.type}
-          </span>
-        </div>
+      <a href="#task-title" className="skip-link">Skip to task form</a>
+      {/* Top bar: breadcrumb + actions */}
+      <header className="sticky top-0 z-40 bg-surface-column border-b border-border-strong px-4 sm:px-6 h-12 flex items-center justify-between gap-4">
+        <nav aria-label="Breadcrumb" className="min-w-0">
+          <ol className="flex items-center gap-2 text-xs">
+            <li>
+              <button
+                type="button"
+                onClick={onBack}
+                className="link font-semibold no-underline hover:underline"
+                title="Return to Kanban board (Esc)"
+              >
+                &larr; Board
+              </button>
+            </li>
+            <li aria-hidden="true" className="text-text-subtle">/</li>
+            <li aria-current="page" className="font-mono text-text-muted truncate">
+              {isEditing ? (task.id || 'Task') : 'New Task'}
+            </li>
+            <li><TypeTag type={form.type} /></li>
+          </ol>
+        </nav>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="px-3.5 py-1.5 rounded-lg border border-border-subtle text-xs font-medium text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors"
-          >
+        <div className="flex items-center gap-2">
+          {saveError && (
+            <span role="alert" className="text-xs text-type-urgent max-w-xs truncate" title={saveError}>
+              {saveError}
+            </span>
+          )}
+          <button type="button" onClick={onBack} className="btn-secondary">
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSave}
-            disabled={!form.title.trim()}
-            className="px-4 py-1.5 rounded-lg bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-50 text-white text-xs font-medium transition-colors shadow-sm flex items-center gap-1.5"
+            disabled={!form.title.trim() || saving}
+            className="btn-primary pr-4"
           >
-            <span>{isEditing ? 'Save Changes' : 'Create Task'}</span>
-            <span className="hidden sm:inline text-[10px] opacity-75 font-mono">(Ctrl+S)</span>
+            <span>{saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Create Task'}</span>
+            <kbd className="hidden sm:inline text-[10px] opacity-80 font-mono">Ctrl+S</kbd>
           </button>
         </div>
-      </nav>
+      </header>
 
       {/* Editor Main Content */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-6 lg:p-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Main Editing Area (Col span 8) */}
           <div className="lg:col-span-8 space-y-6">
             {/* Title Input */}
             <div>
-              <label className="block text-xs font-mono uppercase text-text-muted tracking-wider mb-2">
-                Task Title <span className="text-type-bug">*</span>
+              <label htmlFor="task-title" className="field-label">
+                Task Title <span aria-hidden="true" className="text-type-urgent">*</span>
+                <span className="sr-only">(required)</span>
               </label>
               <input
+                id="task-title"
                 type="text"
                 required
                 autoFocus
                 placeholder="Task title or user story..."
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full text-2xl lg:text-3xl font-bold bg-transparent border-0 border-b-2 border-border-subtle focus:border-brand-primary focus:ring-0 pb-2 text-text-primary placeholder:text-text-muted/40 transition-colors"
+                className="w-full text-2xl lg:text-3xl font-bold bg-transparent border-0 border-b-2 border-border-strong focus:border-brand-accent focus:outline-none pb-2 text-text-primary transition-colors"
               />
             </div>
 
             {/* Description / Detailed Test Specifications */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold uppercase tracking-wider text-text-primary flex items-center gap-2">
-                  <span>Description & Test Specs</span>
-                  <span className="text-[10px] font-normal font-mono text-text-muted">
-                    ({form.description.length} chars)
-                  </span>
-                </label>
-              </div>
+            <div>
+              <label htmlFor="task-description" className="field-label flex items-center gap-2">
+                <span>Description & Test Specs</span>
+                <span className="text-[11px] font-normal normal-case tracking-normal font-mono">
+                  ({form.description.length} chars)
+                </span>
+              </label>
               <textarea
+                id="task-description"
                 rows={8}
                 placeholder="Provide comprehensive task specifications, user acceptance criteria, reproduction steps, or detailed test definitions..."
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full bg-surface-card border border-border-subtle rounded-xl p-4 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-brand-primary leading-relaxed resize-y transition-colors font-sans"
+                className="field p-4 leading-relaxed resize-y"
               />
             </div>
 
-            {/* Tab Navigation for Context vs Prompt History */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3 pt-2">
-              <div className="flex items-center gap-1 bg-surface-column p-1 rounded-lg border border-border-subtle text-xs">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('both')}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors ${
-                    activeTab === 'both'
-                      ? 'bg-brand-primary text-white shadow-sm'
-                      : 'text-text-muted hover:text-text-primary'
-                  }`}
-                >
-                  Stacked View
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('context')}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
-                    activeTab === 'context'
-                      ? 'bg-brand-primary text-white shadow-sm'
-                      : 'text-text-muted hover:text-text-primary'
-                  }`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-brand-accent" />
-                  <span>AI Context Window</span>
-                  {form.context && (
-                    <span className="text-[10px] font-mono opacity-80">
-                      ({form.context.length > 999 ? `${Math.round(form.context.length / 1024)}k` : form.context.length})
-                    </span>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('history')}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
-                    activeTab === 'history'
-                      ? 'bg-brand-primary text-white shadow-sm'
-                      : 'text-text-muted hover:text-text-primary'
-                  }`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                  <span>Prompt History Box</span>
-                  {form.promptHistory && (
-                    <span className="text-[10px] font-mono opacity-80">
-                      ({form.promptHistory.length > 999 ? `${Math.round(form.promptHistory.length / 1024)}k` : form.promptHistory.length})
-                    </span>
-                  )}
-                </button>
+            {/* View switcher for Context vs Prompt History (underline tabs) */}
+            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border-strong">
+              <div role="group" aria-label="Editor view" className="flex items-end text-xs -mb-px">
+                {[
+                  { id: 'both', label: 'Stacked View' },
+                  { id: 'context', label: 'AI Context Window', swatch: 'bg-brand-accent', count: form.context.length },
+                  { id: 'history', label: 'Prompt History Box', swatch: 'bg-type-additional', count: form.promptHistory.length },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    aria-pressed={activeTab === tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-3 py-2 font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+                      activeTab === tab.id
+                        ? 'border-brand-accent text-text-primary'
+                        : 'border-transparent text-text-muted hover:text-text-primary hover:border-border-strong'
+                    }`}
+                  >
+                    {tab.swatch && <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${tab.swatch}`} />}
+                    <span>{tab.label}</span>
+                    {tab.count > 0 && (
+                      <span className="text-[10px] font-mono text-text-muted">
+                        ({tab.count > 999 ? `${Math.round(tab.count / 1024)}k` : tab.count})
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
 
-              <div className="text-[11px] font-mono text-text-muted hidden md:flex items-center gap-2">
-                <span>Markdown & code blocks supported</span>
-              </div>
+              <p className="text-[11px] font-mono text-text-muted hidden md:block pb-2">
+                Markdown & code blocks supported
+              </p>
             </div>
 
             {/* LLM Context Window (Briefing, Logs, Stacktraces, Documentation) */}
             {(activeTab === 'both' || activeTab === 'context') && (
-              <div className="space-y-2 pt-2 border-t border-border-subtle/50 first:border-0 first:pt-0">
+              <section aria-labelledby="context-heading" className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
                   <div className="flex items-center gap-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-brand-accent flex items-center gap-1.5">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <label id="context-heading" htmlFor="task-context" className="text-xs font-bold uppercase tracking-wider text-brand-accent flex items-center gap-1.5">
+                      <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -632,7 +631,7 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
                       </svg>
                       <span>AI Context Window (Briefing & Knowledge)</span>
                     </label>
-                    <span className="text-[11px] font-mono text-text-muted bg-surface-column px-2 py-0.5 rounded border border-border-subtle">
+                    <span className="tag font-mono normal-case tracking-normal font-medium text-text-muted border-border-strong">
                       {form.context.length.toLocaleString()} chars
                     </span>
                   </div>
@@ -642,9 +641,9 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
                       <button
                         type="button"
                         onClick={handleCopyContext}
-                        className="px-2.5 py-1 rounded text-xs font-mono text-brand-accent hover:text-white bg-brand-accent/10 hover:bg-brand-accent/20 border border-brand-accent/30 transition-colors flex items-center gap-1.5"
+                        className="btn font-mono text-brand-accent border-brand-accent/70 hover:bg-brand-accent/10"
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -652,7 +651,7 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
                             d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
                           />
                         </svg>
-                        <span>{copyToast ? 'Copied to Clipboard!' : 'Copy Context'}</span>
+                        <span aria-live="polite">{copyToast ? 'Prompt context copied to clipboard' : 'Copy Context'}</span>
                       </button>
                     )}
                   </div>
@@ -660,26 +659,28 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
 
                 <div className="relative">
                   <textarea
+                    id="task-context"
+                    aria-describedby="task-context-hint"
                     rows={activeTab === 'both' ? 10 : 18}
                     placeholder={`Paste background system context, architectural notes, API schemas, or error stacktraces here...\n\nExample:\n// Context for AI assistant:\nFix the SQL connection pooling issue in server/index.js.\nStacktrace:\nError: ER_ACCESS_DENIED_ERROR: Access denied for user 'vibetracker'@'localhost'`}
                     value={form.context}
                     onChange={(e) => setForm({ ...form, context: e.target.value })}
-                    className="w-full bg-[#121316] font-mono text-xs text-[#a9b7c6] border border-border-subtle rounded-xl p-4 placeholder:text-text-muted/40 focus:outline-none focus:border-brand-accent leading-relaxed resize-y selection:bg-brand-primary selection:text-white"
+                    className="field bg-surface-code font-mono text-xs text-[#c9d4e0] p-4 leading-relaxed resize-y selection:bg-brand-primary selection:text-white"
                   />
                 </div>
-                <p className="text-[11px] text-text-muted leading-relaxed">
+                <p id="task-context-hint" className="text-[11px] text-text-muted leading-relaxed">
                   Context briefing buffer. Persisted in MariaDB MEDIUMTEXT for AI prompt generation and task handoffs.
                 </p>
-              </div>
+              </section>
             )}
 
             {/* Prompt History Box (Prompts Used while working on the problem) */}
             {(activeTab === 'both' || activeTab === 'history') && (
-              <div className="space-y-3 pt-3 border-t border-border-subtle/80">
+              <section aria-labelledby="history-heading" className={`space-y-3 ${activeTab === 'both' ? 'pt-5 border-t border-border-subtle' : ''}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
                   <div className="flex items-center gap-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <label id="history-heading" htmlFor="task-history" className="text-xs font-bold uppercase tracking-wider text-type-additional flex items-center gap-1.5">
+                      <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -689,11 +690,11 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
                       </svg>
                       <span>Prompt History Box (Prompts Used)</span>
                     </label>
-                    <span className="text-[11px] font-mono text-purple-300/80 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded">
+                    <span className="tag font-mono normal-case tracking-normal font-medium text-text-muted border-border-strong">
                       {form.promptHistory.length.toLocaleString()} chars
                     </span>
                     {form.promptHistory && (
-                      <span className="text-[10px] font-mono text-text-muted">
+                      <span className="text-[11px] font-mono text-text-muted">
                         ~{(form.promptHistory.match(/### \[/g) || [1]).length} entry/entries
                       </span>
                     )}
@@ -702,10 +703,12 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
+                      aria-expanded={showQuickPromptBox}
+                      aria-controls="quick-append-panel"
                       onClick={() => setShowQuickPromptBox(!showQuickPromptBox)}
-                      className="px-2.5 py-1 rounded text-xs font-mono text-purple-300 hover:text-white bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 transition-colors flex items-center gap-1"
+                      className="btn font-mono text-type-additional border-type-additional/70 hover:bg-type-additional/10"
                     >
-                      <span>+</span>
+                      <span aria-hidden="true">+</span>
                       <span>{showQuickPromptBox ? 'Close Quick Entry' : 'Quick Append'}</span>
                     </button>
 
@@ -713,9 +716,9 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
                       <button
                         type="button"
                         onClick={handleCopyPromptHistory}
-                        className="px-2.5 py-1 rounded text-xs font-mono text-purple-300 hover:text-white bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 transition-colors flex items-center gap-1.5"
+                        className="btn font-mono text-type-additional border-type-additional/70 hover:bg-type-additional/10"
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -723,7 +726,7 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
                             d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
                           />
                         </svg>
-                        <span>{copyHistoryToast ? 'Prompts Copied!' : 'Copy All Prompts'}</span>
+                        <span aria-live="polite">{copyHistoryToast ? 'Prompts copied to clipboard' : 'Copy All Prompts'}</span>
                       </button>
                     )}
                   </div>
@@ -731,18 +734,18 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
 
                 {/* Quick Append Panel */}
                 {showQuickPromptBox && (
-                  <div className="bg-surface-column border border-purple-500/30 rounded-xl p-3.5 space-y-3 animate-fade-in shadow-md">
-                    <div className="flex items-center justify-between text-xs text-text-primary font-medium">
-                      <span className="flex items-center gap-1.5 text-purple-300">
-                        <span>⚡</span>
-                        <span>Append Prompt to History Log</span>
-                      </span>
+                  <div id="quick-append-panel" className="bg-surface-column border border-border-subtle border-l-4 border-l-type-additional p-3.5 space-y-3 animate-fade-in">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
+                      <label htmlFor="quick-prompt-text" className="text-type-additional uppercase tracking-wider">
+                        Append Prompt to History Log
+                      </label>
                       <div className="flex items-center gap-2">
-                        <label className="text-[11px] text-text-muted font-normal">Tool:</label>
+                        <label htmlFor="quick-prompt-tool" className="text-[11px] text-text-muted font-normal">Tool:</label>
                         <select
+                          id="quick-prompt-tool"
                           value={quickPromptTool}
                           onChange={(e) => setQuickPromptTool(e.target.value)}
-                          className="bg-surface-card border border-border-subtle rounded px-2 py-0.5 text-xs text-text-primary focus:outline-none focus:border-brand-primary"
+                          className="field w-auto px-2 py-0.5 text-xs"
                         >
                           {AI_TOOLS.map((tool) => (
                             <option key={tool} value={tool}>{tool}</option>
@@ -752,19 +755,20 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
                     </div>
 
                     <textarea
+                      id="quick-prompt-text"
                       rows={3}
                       autoFocus
                       placeholder="Paste the prompt you just sent to the AI assistant..."
                       value={quickPromptText}
                       onChange={(e) => setQuickPromptText(e.target.value)}
-                      className="w-full bg-[#121316] font-mono text-xs text-text-primary border border-border-subtle rounded-lg p-2.5 focus:outline-none focus:border-purple-400 placeholder:text-text-muted/40"
+                      className="field bg-surface-code font-mono text-xs p-2.5"
                     />
 
-                    <div className="flex items-center justify-end gap-2 pt-1">
+                    <div className="flex items-center justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => setShowQuickPromptBox(false)}
-                        className="px-3 py-1 rounded text-xs text-text-muted hover:text-text-primary border border-border-subtle"
+                        className="btn-secondary"
                       >
                         Cancel
                       </button>
@@ -772,9 +776,9 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
                         type="button"
                         onClick={handleAppendPrompt}
                         disabled={!quickPromptText.trim()}
-                        className="px-3.5 py-1 rounded text-xs font-medium bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white shadow-sm transition-colors flex items-center gap-1.5"
+                        className="btn-primary pr-4"
                       >
-                        <span>+ Append to Log</span>
+                        + Append to Log
                       </button>
                     </div>
                   </div>
@@ -783,128 +787,144 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
                 {/* Direct Prompt History Box Textarea */}
                 <div className="relative">
                   <textarea
+                    id="task-history"
+                    aria-describedby="task-history-hint"
                     rows={activeTab === 'both' ? 12 : 20}
                     placeholder={`Paste the prompts you used into this prompt history box while working on the problem...\n\nExample:\n### [2026-10-26 14:15] Claude 3.5 Sonnet\nWrite an Express route to fetch all team members and their roles.\n\n---\n\n### [2026-10-26 14:32] Cursor\nRefactor the query to include joined_at date and order by role.\n\n---\n\n### [2026-10-26 15:05] ChatGPT\nHelp write the SQL migration to add prompt_history mediumtext to the tasks table.`}
                     value={form.promptHistory}
                     onChange={(e) => setForm({ ...form, promptHistory: e.target.value })}
-                    className="w-full bg-[#121316] font-mono text-xs text-[#c0caf5] border border-border-subtle rounded-xl p-4 placeholder:text-text-muted/40 focus:outline-none focus:border-purple-400 leading-relaxed resize-y selection:bg-purple-600 selection:text-white"
+                    className="field bg-surface-code font-mono text-xs text-[#d4dcf5] p-4 leading-relaxed resize-y selection:bg-purple-600 selection:text-white"
                   />
                 </div>
-                <p className="text-[11px] text-text-muted leading-relaxed">
+                <p id="task-history-hint" className="text-[11px] text-text-muted leading-relaxed">
                   Prompt history log. Type or paste your exact prompts here as you iterate on the problem. Persisted in MariaDB MEDIUMTEXT to build your team audit log and Module 5 Vibe Coding History deliverable.
                 </p>
-              </div>
+              </section>
             )}
           </div>
 
           {/* Properties Sidebar (Col span 4) */}
-          <aside className="lg:col-span-4 space-y-6">
-            <div className="bg-surface-column/70 border border-border-subtle rounded-xl p-5 space-y-5 sticky top-20 shadow-sm">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2 border-b border-border-subtle">
+          <aside aria-labelledby="task-properties-heading" className="lg:col-span-4">
+            <div className="lg:sticky lg:top-16 bg-surface-column border-t-2 border-t-brand-accent border-x border-b border-border-subtle divide-y divide-border-subtle">
+              <h2 id="task-properties-heading" className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-text-primary">
                 Task Properties
-              </h3>
+              </h2>
 
               {/* Status / Stage */}
-              <div>
-                <label className="block text-xs font-medium text-text-muted uppercase tracking-wider mb-2">
-                  Stage
-                </label>
-                <div className="grid grid-cols-2 gap-2">
+              <fieldset className="px-4 py-4">
+                <legend className="field-label float-left w-full">Stage</legend>
+                <div className="clear-both grid grid-cols-2 gap-2">
                   {STAGES.map((s) => {
                     const active = form.status === s.id;
                     return (
                       <button
                         key={s.id}
                         type="button"
+                        aria-pressed={active}
                         onClick={() => setForm({ ...form, status: s.id })}
-                        className={`py-2 px-3 rounded-lg text-xs font-medium border flex items-center gap-2 transition-all ${
+                        className={`py-2 px-3 rounded-md border text-xs font-semibold flex items-center gap-2 transition-colors ${
                           active
-                            ? 'bg-surface-elevated text-text-primary border-brand-primary shadow-sm'
-                            : 'bg-surface-card text-text-muted border-border-subtle hover:bg-surface-elevated'
+                            ? 'bg-brand-primary border-brand-primary text-white'
+                            : 'bg-surface-card border-border-strong text-text-muted hover:bg-surface-elevated hover:text-text-primary'
                         }`}
                       >
-                        <span className={`w-2 h-2 rounded-full ${s.color}`} />
+                        <span aria-hidden="true" className={`w-2 h-2 rounded-full ${s.color}`} />
                         <span>{s.label}</span>
                       </button>
                     );
                   })}
                 </div>
-              </div>
+              </fieldset>
 
               {/* Type Selector */}
-              <div>
-                <label className="block text-xs font-medium text-text-muted uppercase tracking-wider mb-2">
-                  Category Type
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['feature', 'bug', 'urgent', 'additional'].map((t) => (
+              <fieldset className="px-4 py-4">
+                <legend className="field-label float-left w-full">Category Type</legend>
+                <div className="clear-both grid grid-cols-2 gap-2">
+                  {Object.entries(TASK_TYPES).map(([t, cfg]) => (
                     <button
                       key={t}
                       type="button"
+                      aria-pressed={form.type === t}
                       onClick={() => setForm({ ...form, type: t })}
-                      className={`py-2 px-3 rounded-lg text-xs font-medium capitalize border flex items-center justify-center gap-2 transition-all ${
+                      className={`py-2 px-3 rounded-md border text-xs font-semibold flex items-center gap-2 transition-colors ${
                         form.type === t
-                          ? 'bg-brand-primary/15 text-brand-accent border-brand-primary shadow-sm'
-                          : 'bg-surface-card text-text-muted border-border-subtle hover:bg-surface-elevated'
+                          ? 'bg-brand-primary border-brand-primary text-white'
+                          : 'bg-surface-card border-border-strong text-text-muted hover:bg-surface-elevated hover:text-text-primary'
                       }`}
                     >
-                      <span className={`w-2 h-2 rounded-full ${t === 'bug' || t === 'urgent' ? 'bg-type-bug' : 'bg-type-feature'}`} />
-                      {t}
+                      <span aria-hidden="true" className={`w-2 h-2 rounded-full ${cfg.swatch}`} />
+                      {cfg.label}
                     </button>
                   ))}
                 </div>
-              </div>
+              </fieldset>
 
               {/* Assignee */}
-              <div>
-                <label className="block text-xs font-medium text-text-muted uppercase tracking-wider mb-1.5">
+              <div className="px-4 py-4">
+                <label htmlFor={canReassign ? 'task-assignee' : undefined} className="field-label">
                   Assignee
                 </label>
-                <select
-                  value={form.assignee}
-                  onChange={(e) => setForm({ ...form, assignee: e.target.value })}
-                  className="w-full bg-surface-card border border-border-subtle rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-brand-primary cursor-pointer"
-                >
-                  {teamMembers.map((member) => (
-                    <option key={member} value={member}>
-                      {member}
-                    </option>
-                  ))}
-                </select>
+                {canReassign ? (
+                  <select
+                    id="task-assignee"
+                    value={form.assignee}
+                    onChange={(e) => setForm({ ...form, assignee: e.target.value })}
+                    className="field text-xs cursor-pointer"
+                  >
+                    <option value="">Unassigned</option>
+                    {form.assignee && !teamMembers.includes(form.assignee) && (
+                      <option value={form.assignee}>{form.assignee}</option>
+                    )}
+                    {teamMembers.map((member) => (
+                      <option key={member} value={member}>
+                        {member}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <>
+                    <p className="field text-xs border-border-subtle">
+                      {form.assignee || 'Unassigned'}
+                    </p>
+                    <p className="mt-1 text-[11px] text-text-muted">
+                      Only the team creator can reassign tasks.
+                    </p>
+                  </>
+                )}
               </div>
 
               {/* Due Date with Live Significance Preview */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-medium text-text-muted uppercase tracking-wider">
+              <div className="px-4 py-4">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <label htmlFor="task-due" className="field-label mb-0">
                     Due Date
                   </label>
                   {form.dueDate && (
-                    <span
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded-full border flex items-center gap-1 ${currentSignificance.chipClass}`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${currentSignificance.dotColor}`} />
+                    <span aria-live="polite" className={`tag font-mono normal-case tracking-normal ${currentSignificance.chipClass}`}>
+                      <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${currentSignificance.dotColor}`} />
                       <span>{currentSignificance.label}</span>
                     </span>
                   )}
                 </div>
                 <input
+                  id="task-due"
                   type="date"
                   value={form.dueDate}
                   onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                  className="w-full bg-surface-card border border-border-subtle rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-brand-primary"
+                  className="field text-xs [color-scheme:dark]"
                 />
               </div>
 
               {/* AI Target Tool */}
-              <div>
-                <label className="block text-xs font-medium text-text-muted uppercase tracking-wider mb-1.5">
+              <div className="px-4 py-4">
+                <label htmlFor="task-tool" className="field-label">
                   Target AI Tool
                 </label>
                 <select
+                  id="task-tool"
                   value={form.contextTool}
                   onChange={(e) => setForm({ ...form, contextTool: e.target.value })}
-                  className="w-full bg-surface-card border border-border-subtle rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-brand-primary cursor-pointer"
+                  className="field text-xs cursor-pointer"
                 >
                   {AI_TOOLS.map((tool) => (
                     <option key={tool} value={tool}>
@@ -916,42 +936,47 @@ export function TaskEditorPage({ task, teamMembers, onBack, onSave, onDelete }) 
 
               {/* Metadata */}
               {isEditing && (
-                <div className="pt-3 border-t border-border-subtle text-[11px] text-text-muted space-y-1 font-mono">
-                  <div>Created: {task.createdDate}</div>
+                <dl className="px-4 py-3 text-[11px] text-text-muted font-mono grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                  <dt>Created</dt>
+                  <dd className="text-text-primary">{task.createdDate}</dd>
                   {task.contextUpdatedAt && (
-                    <div>Context updated: {new Date(task.contextUpdatedAt).toLocaleDateString()}</div>
+                    <>
+                      <dt>Context updated</dt>
+                      <dd className="text-text-primary">{new Date(task.contextUpdatedAt).toLocaleDateString()}</dd>
+                    </>
                   )}
-                </div>
+                </dl>
               )}
 
               {/* Danger Zone: Delete */}
               {isEditing && (
-                <div className="pt-4 border-t border-border-subtle">
+                <div className="px-4 py-4">
                   {!showDeleteConfirm ? (
                     <button
                       type="button"
                       onClick={() => setShowDeleteConfirm(true)}
-                      className="w-full py-2 px-3 rounded-lg border border-type-bug/30 text-type-bug hover:bg-type-bug/10 text-xs font-medium transition-colors text-center"
+                      className="btn-danger w-full py-2"
                     >
                       Delete Task
                     </button>
                   ) : (
-                    <div className="p-3 rounded-lg border border-type-bug/60 bg-type-bug/10 space-y-2 text-xs animate-fade-in">
-                      <p className="font-semibold text-type-bug">
+                    <div role="alertdialog" aria-labelledby="delete-warning" className="p-3 border border-type-urgent border-l-4 bg-type-urgent/10 space-y-2 text-xs animate-fade-in">
+                      <p id="delete-warning" className="font-semibold text-type-urgent">
                         Deleting this task will PERMANENTLY delete all context and history
                       </p>
                       <div className="flex items-center gap-2 pt-1">
                         <button
                           type="button"
+                          autoFocus
                           onClick={() => setShowDeleteConfirm(false)}
-                          className="flex-1 py-1 px-2 rounded bg-surface-card text-text-muted hover:text-text-primary text-xs border border-border-subtle"
+                          className="btn-secondary flex-1"
                         >
                           Cancel
                         </button>
                         <button
                           type="button"
                           onClick={handleDelete}
-                          className="flex-1 py-1 px-2 rounded bg-type-bug hover:bg-type-bug/90 text-white font-medium text-xs transition-colors"
+                          className="btn flex-1 bg-red-700 border-red-700 hover:bg-red-800 text-white"
                         >
                           Yes, Delete
                         </button>
@@ -1032,12 +1057,24 @@ export default function App() {
   }, [token, authLoading, activeTeamId]);
 
   const [activeEditorTask, setActiveEditorTask] = useState(null);
+  const [handoffToast, setHandoffToast] = useState('');
+  const handoffToastTimer = useRef(null);
+
+  const showHandoffToast = useCallback((message) => {
+    // Restart the timer so an earlier toast can't hide a newer message early
+    clearTimeout(handoffToastTimer.current);
+    setHandoffToast(message);
+    handoffToastTimer.current = setTimeout(() => setHandoffToast(''), 3500);
+  }, []);
+
+  useEffect(() => () => clearTimeout(handoffToastTimer.current), []);
   const [showDeliverablesPinned, setShowDeliverablesPinned] = useState(true);
   const [deliverablesStats, setDeliverablesStats] = useState({ ready: 0, completed: 0, total: 5 });
 
   // Filtering & Sorting State
   const [filterMyTasksOnly, setFilterMyTasksOnly] = useState(false);
-  const [sortBy, setSortBy] = useState('default'); // 'default' | 'deadline-asc' | 'deadline-desc' | 'created-desc' | 'created-asc'
+  // Must match one of the sort <select> options, otherwise the dropdown shows a mode that isn't applied
+  const [sortBy, setSortBy] = useState('deadline-asc'); // 'deadline-asc' | 'deadline-desc' | 'created-desc' | 'created-asc'
 
   const handleDeliverablesStatsChange = useCallback((stats) => {
     setDeliverablesStats(prev => {
@@ -1074,6 +1111,7 @@ export default function App() {
     try {
       const res = await acceptInvite(inviteTokenParam);
       setAcceptSuccess(res.message || 'Successfully joined team!');
+      if (res.teamId) setActiveTeamId(res.teamId);
       setTimeout(() => {
         window.location.hash = '#/teams';
         setRoute('teams');
@@ -1085,9 +1123,20 @@ export default function App() {
     }
   }
 
+  // After signing in or registering, return to a pending invite link instead of the teams list
+  function goAfterAuth() {
+    if (inviteTokenParam && !acceptSuccess) {
+      window.location.hash = `#/accept-invite?token=${inviteTokenParam}`;
+      setRoute('accept-invite');
+    } else {
+      window.location.hash = '#/teams';
+      setRoute('teams');
+    }
+  }
+
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-surface-page text-text-muted flex items-center justify-center text-sm">
+      <div role="status" className="min-h-screen bg-surface-page text-text-muted flex items-center justify-center text-sm">
         Loading VibeTracker…
       </div>
     );
@@ -1099,8 +1148,7 @@ export default function App() {
         <RegisterPage
           onRegister={async (fields) => {
             await register(fields);
-            window.location.hash = '#/teams';
-            setRoute('teams');
+            goAfterAuth();
           }}
           onGoLogin={() => {
             window.location.hash = '#/login';
@@ -1113,8 +1161,7 @@ export default function App() {
       <LoginPage
         onLogin={async (email, password) => {
           await login(email, password);
-          window.location.hash = '#/teams';
-          setRoute('teams');
+          goAfterAuth();
         }}
         onGoRegister={() => {
           window.location.hash = '#/register';
@@ -1126,32 +1173,35 @@ export default function App() {
 
   if (route === 'accept-invite') {
     return (
-      <div className="min-h-screen bg-[#1e1f22] text-[#dfe1e5] flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-[#2b2d30] border border-[#3c3f41] rounded-lg p-6 text-center space-y-4">
-          <h2 className="text-xl font-bold text-white">Team Invitation</h2>
+      <main className="min-h-screen bg-surface-page text-text-primary flex items-center justify-center p-4">
+        <section aria-labelledby="invite-heading" className="w-full max-w-md bg-surface-column border border-border-subtle border-t-2 border-t-brand-accent p-6 space-y-4">
+          <Wordmark />
+          <h1 id="invite-heading" className="text-xl font-bold">Team Invitation</h1>
           {acceptSuccess ? (
-            <p className="text-[#22c55e] text-sm">{acceptSuccess}</p>
+            <p role="status" className="text-status-success text-sm">{acceptSuccess}</p>
           ) : (
             <>
-              <p className="text-[#8c8fa3] text-sm">You have been invited to join a team on VibeTracker.</p>
-              {acceptError && <p className="text-[#ef4444] text-sm">{acceptError}</p>}
+              <p className="text-text-muted text-sm">You have been invited to join a team on VibeTracker.</p>
+              {acceptError && <p role="alert" className="text-status-danger text-sm">{acceptError}</p>}
               <button
+                type="button"
                 onClick={handleAcceptInviteSubmit}
                 disabled={acceptingInvite}
-                className="w-full bg-[#4c9ee8] hover:bg-[#5aadff] text-white py-2 rounded text-sm font-semibold transition-colors"
+                className="btn-primary w-full py-2 text-sm"
               >
                 {acceptingInvite ? 'Joining…' : 'Accept Invitation'}
               </button>
             </>
           )}
           <button
+            type="button"
             onClick={() => { window.location.hash = '#/teams'; setRoute('teams'); }}
-            className="text-[#8c8fa3] hover:text-[#dfe1e5] text-xs underline"
+            className="link text-xs"
           >
             Go to Teams Dashboard
           </button>
-        </div>
-      </div>
+        </section>
+      </main>
     );
   }
 
@@ -1191,6 +1241,20 @@ export default function App() {
   }
 
   const teamMembersList = teamDetail?.members?.map(m => m.name) || [user?.name || 'Alex'];
+  // Only the team creator picks who new tasks go to; everyone else creates tasks for themselves
+  const defaultAssignee = isTeamCreator ? (teamMembersList[0] || user?.name || '') : (user?.name || '');
+
+  const handleReassign = async (task, newAssignee) => {
+    if (!isTeamCreator || (task.assignee || '') === newAssignee) return;
+    try {
+      await updateTask(task.id, { assignee: newAssignee });
+      showHandoffToast(newAssignee
+        ? `Handed off to ${newAssignee}. Make sure they have necessary context.`
+        : `"${task.title}" is now unassigned.`);
+    } catch (e) {
+      showHandoffToast(e.message);
+    }
+  };
 
   // Filter & Sort tasks
   const displayedTasks = tasks
@@ -1235,10 +1299,14 @@ export default function App() {
       <TaskEditorPage
         task={activeEditorTask}
         teamMembers={teamMembersList}
+        canReassign={isTeamCreator}
         onBack={() => setActiveEditorTask(null)}
         onSave={async (formData) => {
           if (activeEditorTask?.id) {
             await updateTask(activeEditorTask.id, formData);
+            if (formData.assignee && formData.assignee !== (activeEditorTask.assignee || '')) {
+              showHandoffToast(`Handed off to ${formData.assignee}. Make sure they have necessary context.`);
+            }
           } else {
             await addTask(formData);
           }
@@ -1254,197 +1322,183 @@ export default function App() {
 
   // Main Kanban Board View
   return (
-    <div className="min-h-screen bg-surface-page text-text-primary p-6 flex flex-col">
-      {/* Header with Team Switcher & User Profile */}
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-4">
-        <div className="flex items-center gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-text-primary">
-                VibeTracker
-              </h1>
-              <span className="w-2 h-2 rounded-full bg-gradient-to-tr from-brand-primary to-brand-accent" />
-            </div>
-            <p className="text-xs text-text-muted mt-0.5">
-              Agile task & prompt tracker · Team Workspace
-            </p>
-          </div>
+    <div className="min-h-screen bg-surface-page text-text-primary flex flex-col">
+      <a href="#board" className="skip-link">Skip to board</a>
 
-          {/* Active team pill / switcher */}
-          <button
-            onClick={() => { window.location.hash = '#/teams'; setRoute('teams'); }}
-            className="flex items-center gap-2 px-3 py-1.5 bg-surface-column hover:bg-surface-elevated border border-border-subtle rounded-lg text-xs transition-colors"
-            title="Switch team"
-          >
-            <span className="w-2 h-2 rounded-full bg-brand-primary" />
-            <span className="font-semibold text-text-primary">{activeTeam?.name || 'Select Team'}</span>
-            <span className="text-text-muted">▾</span>
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Significance Timeline Legend (§2.3) */}
-          <div className="hidden xl:flex items-center gap-3 text-[11px] font-mono text-text-muted bg-surface-column px-3 py-1.5 rounded-lg border border-border-subtle">
-            <span className="text-text-muted/60 uppercase font-sans text-[10px] font-semibold">Urgency:</span>
-            <span className="flex items-center gap-1.5 text-rose-400">
-              <span className="w-2 h-2 rounded-full bg-rose-500" /> Today
-            </span>
-            <span className="flex items-center gap-1.5 text-amber-400">
-              <span className="w-2 h-2 rounded-full bg-amber-500" /> &le; 5 Days
-            </span>
-            <span className="flex items-center gap-1.5 text-sky-400">
-              <span className="w-2 h-2 rounded-full bg-sky-500" /> &le; 2 Weeks
-            </span>
-            <span className="flex items-center gap-1.5 text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-slate-500" /> Later
-            </span>
-          </div>
-
-          {/* Filter & Sort Controls */}
-          <div className="flex items-center gap-2 bg-surface-column p-1 rounded-lg border border-border-subtle">
-            {/* My Tasks Filter Toggle */}
+      {/* Global top bar: brand, team switcher, account */}
+      <header className="bg-surface-column border-b border-border-strong">
+        <div className="px-4 sm:px-6 h-12 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <Wordmark />
+            <span aria-hidden="true" className="h-5 w-px bg-border-strong" />
             <button
               type="button"
-              onClick={() => setFilterMyTasksOnly(prev => !prev)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                filterMyTasksOnly
-                  ? 'bg-brand-primary text-white shadow-sm'
-                  : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
-              }`}
-              title={filterMyTasksOnly ? 'Show all team tasks' : 'Show only tasks assigned to me'}
+              onClick={() => { window.location.hash = '#/teams'; setRoute('teams'); }}
+              className="btn-ghost text-text-primary min-w-0"
+              title="Switch team"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span>My Tasks</span>
-              {filterMyTasksOnly && (
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-              )}
+              <span className="sr-only">Switch team. Current team:</span>
+              <span className="truncate max-w-[12rem]">{activeTeam?.name || 'Select Team'}</span>
+              <span aria-hidden="true" className="text-text-muted">▾</span>
             </button>
-
-            {/* Sort Dropdown */}
-            <div className="flex items-center gap-1 border-l border-border-subtle/80 pl-2 pr-1">
-              <label htmlFor="task-sort-select" className="text-[10px] uppercase font-mono text-text-muted flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-                </svg>
-                <span>Sort:</span>
-              </label>
-              <select
-                id="task-sort-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-surface-card border border-border-subtle/80 rounded px-2 py-0.5 text-xs text-text-primary focus:outline-none focus:border-brand-primary cursor-pointer"
-              >
-                <option value="deadline-asc">Deadline (Earliest first)</option>
-                <option value="deadline-desc">Deadline (Latest first)</option>
-                <option value="created-desc">Created (Newest first)</option>
-                <option value="created-asc">Created (Oldest first)</option>
-              </select>
-            </div>
           </div>
 
-          <span className="text-xs font-mono text-text-muted bg-surface-column px-2.5 py-1 rounded-md border border-border-subtle">
-            {displayedTasks.length}{filterMyTasksOnly ? ` / ${tasks.length}` : ''} {displayedTasks.length === 1 ? 'task' : 'tasks'}
-          </span>
-
-          {/* Deliverables & Milestones Board Toggle (PRD §3.3) */}
-          <button
-            type="button"
-            onClick={() => setShowDeliverablesPinned(prev => !prev)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-              showDeliverablesPinned
-                ? 'bg-brand-primary text-white border-brand-primary shadow-sm'
-                : 'bg-surface-column hover:bg-surface-elevated text-text-primary border-border-subtle hover:border-[#4e5157]'
-            }`}
-            title="Toggle Pinned Deliverables & Milestones Board (PRD §3.3)"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-            <span className="hidden sm:inline">Deliverables</span>
-            <span
-              className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full border ${
-                showDeliverablesPinned
-                  ? 'bg-white/20 text-white border-white/30 font-semibold'
-                  : 'bg-surface-elevated text-text-muted border-border-subtle'
-              }`}
-            >
-              {deliverablesStats.ready}/{deliverablesStats.total}
-            </span>
-            <span className="text-[10px] opacity-75">{showDeliverablesPinned ? '▲' : '▼'}</span>
-          </button>
-
-          <button
-
-            onClick={() => setActiveEditorTask({
-              status: 'todo',
-              type: 'feature',
-              assignee: teamMembersList[0] || user?.name || '',
-              description: '',
-              context: '',
-              contextTool: user?.defaultLlmTool || 'Claude',
-
-              promptHistory: '',
-
-            })}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-medium transition-colors shadow-sm cursor-pointer"
-          >
-            <span>+</span>
-            <span>Add Task</span>
-          </button>
-
-          {/* Profile & Logout */}
-          <div className="flex items-center gap-2 pl-2 border-l border-border-subtle">
+          <nav aria-label="Account" className="flex items-center gap-1">
             <button
+              type="button"
               onClick={() => { window.location.hash = '#/profile'; setRoute('profile'); }}
-              className="flex items-center gap-2 px-2.5 py-1 rounded-lg hover:bg-surface-column transition-colors text-xs"
+              className="btn-ghost text-text-primary"
               title="Edit Profile"
             >
-              <div className="w-6 h-6 rounded-full bg-brand-primary/20 text-brand-primary flex items-center justify-center font-bold text-[11px]">
+              <span aria-hidden="true" className="w-6 h-6 bg-brand-primary text-white flex items-center justify-center font-bold text-[11px]">
                 {user?.name?.charAt(0).toUpperCase() || 'U'}
-              </div>
-              <span className="hidden sm:inline font-medium text-text-primary">{user?.name}</span>
+              </span>
+              <span className="hidden sm:inline">{user?.name}</span>
+              <span className="sr-only sm:hidden">Profile</span>
             </button>
-
             <button
+              type="button"
               onClick={() => {
                 logout();
                 window.location.hash = '#/login';
                 setRoute('login');
               }}
-              className="text-text-muted hover:text-type-bug text-xs px-2 py-1 rounded transition-colors"
-              title="Sign out"
+              className="btn-ghost hover:text-type-urgent"
             >
-              Logout
+              Sign out
             </button>
-          </div>
+          </nav>
         </div>
       </header>
 
+      {/* Page heading + primary actions */}
+      <div className="px-4 sm:px-6 pt-5 pb-4 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">{activeTeam?.name ? `${activeTeam.name} board` : 'Board'}</h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            Agile task & prompt tracker · Team Workspace
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Deliverables & Milestones Board Toggle (PRD §3.3) */}
+          <button
+            type="button"
+            aria-expanded={showDeliverablesPinned}
+            aria-controls="deliverables-board"
+            onClick={() => setShowDeliverablesPinned(prev => !prev)}
+            className="btn-secondary"
+            title="Toggle Pinned Deliverables & Milestones Board (PRD §3.3)"
+          >
+            <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+            <span>Deliverables</span>
+            <span className="font-mono text-text-muted">
+              {deliverablesStats.ready}/{deliverablesStats.total}
+              <span className="sr-only"> linked</span>
+            </span>
+            <span aria-hidden="true" className="text-[10px] text-text-muted">{showDeliverablesPinned ? '▲' : '▼'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveEditorTask({
+              status: 'todo',
+              type: 'feature',
+              assignee: defaultAssignee,
+              description: '',
+              context: '',
+              contextTool: user?.defaultLlmTool || 'Claude',
+              promptHistory: '',
+            })}
+            className="btn-primary pr-4"
+          >
+            <span aria-hidden="true">+</span>
+            <span>Add Task</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Filter bar: ruled strip, GitLab-style */}
+      <div
+        role="group"
+        aria-label="Filter and sort tasks"
+        className="mx-4 sm:mx-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-border-subtle bg-surface-column px-3 py-2"
+      >
+        <button
+          type="button"
+          aria-pressed={filterMyTasksOnly}
+          onClick={() => setFilterMyTasksOnly(prev => !prev)}
+          className={`btn ${
+            filterMyTasksOnly
+              ? 'bg-brand-primary border-brand-primary text-white'
+              : 'bg-surface-card border-border-strong text-text-primary hover:bg-surface-elevated'
+          }`}
+          title={filterMyTasksOnly ? 'Show all team tasks' : 'Show only tasks assigned to me'}
+        >
+          <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <span>My Tasks</span>
+        </button>
+
+        <div className="flex items-center gap-2">
+          <label htmlFor="task-sort-select" className="text-[11px] uppercase font-semibold tracking-wider text-text-muted">
+            Sort
+          </label>
+          <select
+            id="task-sort-select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="field w-auto py-1 px-2 text-xs cursor-pointer"
+          >
+            <option value="deadline-asc">Deadline (Earliest first)</option>
+            <option value="deadline-desc">Deadline (Latest first)</option>
+            <option value="created-desc">Created (Newest first)</option>
+            <option value="created-asc">Created (Oldest first)</option>
+          </select>
+        </div>
+
+        <p role="status" className="text-xs font-mono text-text-muted">
+          {displayedTasks.length}{filterMyTasksOnly ? ` / ${tasks.length}` : ''} {displayedTasks.length === 1 ? 'task' : 'tasks'}
+        </p>
+
+        {/* Significance Timeline Legend (§2.3) */}
+        <div className="hidden lg:flex items-center gap-3 ml-auto text-[11px] font-mono text-text-muted">
+          <span className="font-sans font-semibold uppercase tracking-wider">Urgency</span>
+          <ul aria-label="Urgency legend" className="flex items-center gap-3">
+            <li className="flex items-center gap-1.5"><span aria-hidden="true" className="w-1 h-3.5 bg-significance-today" /> Today</li>
+            <li className="flex items-center gap-1.5"><span aria-hidden="true" className="w-1 h-3.5 bg-significance-soon" /> &le; 5 days</li>
+            <li className="flex items-center gap-1.5"><span aria-hidden="true" className="w-1 h-3.5 bg-significance-sprint" /> &le; 2 weeks</li>
+            <li className="flex items-center gap-1.5"><span aria-hidden="true" className="w-1 h-3.5 bg-slate-500" /> Later</li>
+          </ul>
+        </div>
+      </div>
+
       {/* Database Error Banner (if offline) */}
       {tasksError && (
-        <div className="mb-4 rounded-md border border-due-warning/40 bg-due-warning/10 p-3 text-xs text-due-warning flex items-center justify-between">
-          <span>
-            API error: {tasksError}. Ensure backend server is running (<code className="font-mono bg-surface-page px-1 rounded">npm run server</code>).
-          </span>
+        <div role="alert" className="mx-4 sm:mx-6 mt-4 border border-status-warning/60 border-l-4 border-l-status-warning bg-status-warning/10 px-3 py-2 text-xs text-status-warning">
+          API error: {tasksError}. Ensure backend server is running (<code className="font-mono bg-surface-page px-1">npm run server</code>).
         </div>
       )}
 
+      <main id="board" tabIndex={-1} className="flex-1 flex flex-col px-4 sm:px-6 py-4 focus:outline-none">
       {!activeTeam ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
           <p className="text-text-muted text-sm mb-4">No team selected.</p>
           <button
+            type="button"
             onClick={() => { window.location.hash = '#/teams'; setRoute('teams'); }}
-            className="px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-semibold"
+            className="btn-primary px-4 py-2 text-sm"
           >
             Go to Teams Dashboard
           </button>
         </div>
       ) : tasksLoading ? (
-        <div className="flex-1 flex items-center justify-center text-text-muted text-sm">
+        <p role="status" className="flex-1 flex items-center justify-center text-text-muted text-sm">
           Loading tasks for {activeTeam.name}…
-        </div>
+        </p>
       ) : (
 
         <>
@@ -1459,7 +1513,8 @@ export default function App() {
             onStatsChange={handleDeliverablesStatsChange}
           />
 
-          <main className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Board: square, ruled columns separated by small gutters */}
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {STAGES.map((stage) => (
               <KanbanColumn
                 key={stage.id}
@@ -1469,17 +1524,30 @@ export default function App() {
                 onAddTask={(status) => setActiveEditorTask({
                   status,
                   type: 'feature',
-                  assignee: teamMembersList[0] || user?.name || '',
+                  assignee: defaultAssignee,
                   description: '',
                   context: '',
                   contextTool: user?.defaultLlmTool || 'Claude',
                   promptHistory: '',
                 })}
+                teamMembers={teamMembersList}
+                canReassign={isTeamCreator}
+                onReassign={handleReassign}
               />
             ))}
-          </main>
+          </div>
         </>
       )}
+      </main>
+
+      {/* Handoff toast (M7 task-owner) */}
+      <div aria-live="polite" className="fixed bottom-6 right-6 z-50 max-w-sm">
+        {handoffToast && (
+          <p className="bg-surface-card border border-border-strong border-l-4 border-l-brand-accent shadow-2xl px-4 py-3 text-xs text-text-primary">
+            {handoffToast}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

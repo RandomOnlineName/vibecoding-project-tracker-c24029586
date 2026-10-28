@@ -40,6 +40,9 @@ function setStorage(key, value) {
 export function initLocalStorage(force = false) {
   if (typeof window === 'undefined') return;
 
+  // A browser with no users stored has never run the demo before
+  const isFirstVisit = !localStorage.getItem(STORAGE_KEYS.USERS);
+
   if (force || !localStorage.getItem(STORAGE_KEYS.TASKS)) {
     setStorage(STORAGE_KEYS.TASKS, seedData.tasks);
   }
@@ -81,8 +84,8 @@ export function initLocalStorage(force = false) {
     localStorage.setItem(STORAGE_KEYS.ACTIVE_TEAM, seedData.team.id);
   }
 
-  // Auto-login Alex Reed on first visit if no token exists
-  if (!localStorage.getItem(STORAGE_KEYS.TOKEN)) {
+  // Auto-login Alex Reed on first visit only, so logging out sticks across reloads
+  if ((force || isFirstVisit) && !localStorage.getItem(STORAGE_KEYS.TOKEN)) {
     localStorage.setItem(STORAGE_KEYS.TOKEN, `mock-token-${seedData.users[0].id}`);
   }
 }
@@ -99,6 +102,25 @@ function jsonResponse(data, status = 200) {
   });
 }
 
+// Seed data uses snake_case (from the old SQL schema); the UI reads camelCase.
+const TASK_FIELD_ALIASES = {
+  due_date: 'dueDate',
+  created_date: 'createdDate',
+  context_tool: 'contextTool',
+  context_updated_at: 'contextUpdatedAt',
+  prompt_history: 'promptHistory',
+  team_id: 'teamId',
+};
+
+function normalizeTask(task) {
+  const out = { ...task };
+  for (const [snake, camel] of Object.entries(TASK_FIELD_ALIASES)) {
+    if (out[camel] === undefined && out[snake] !== undefined) out[camel] = out[snake];
+    if (out[camel] !== undefined) out[snake] = out[camel];
+  }
+  return out;
+}
+
 function getUserFromToken(headers) {
   const auth = headers.get?.('Authorization') || headers.Authorization || '';
   const match = auth.match(/^Bearer\s+mock-token-(.+)$/i);
@@ -106,6 +128,34 @@ function getUserFromToken(headers) {
   const userId = match[1];
   const users = getStorage(STORAGE_KEYS.USERS, []);
   return users.find(u => u.id === userId) || null;
+}
+
+function isTeamMember(user, teamId) {
+  if (!user) return false;
+  const teams = getStorage(STORAGE_KEYS.TEAMS, []);
+  const members = getStorage(STORAGE_KEYS.TEAM_MEMBERS, []);
+  return teams.some(t => t.id === teamId && t.created_by === user.id) ||
+    members.some(m => m.team_id === teamId && m.user_id === user.id);
+}
+
+function isTeamOwner(user, teamId) {
+  if (!user) return false;
+  const teams = getStorage(STORAGE_KEYS.TEAMS, []);
+  const members = getStorage(STORAGE_KEYS.TEAM_MEMBERS, []);
+  return teams.some(t => t.id === teamId && t.created_by === user.id) ||
+    members.some(m => m.team_id === teamId && m.user_id === user.id && m.role === 'owner');
+}
+
+function defaultDeliverables(teamId) {
+  const now = new Date().toISOString();
+  return seedData.deliverables.map(d => ({
+    id: d.id,
+    label: d.label,
+    url: null,
+    status: 'not-started',
+    team_id: teamId,
+    updated_at: now,
+  }));
 }
 
 // ── Request Router ───────────────────────────────────────────────────────────
@@ -197,13 +247,15 @@ async function handleLocalApi(path, method, body, headers) {
     if (!user) return jsonResponse({ error: 'unauthorized' }, 401);
     const teams = getStorage(STORAGE_KEYS.TEAMS, []);
     const members = getStorage(STORAGE_KEYS.TEAM_MEMBERS, []);
-    const userTeams = teams.map(t => {
-      const m = members.find(mem => mem.team_id === t.id && mem.user_id === user.id);
-      return {
-        ...t,
-        role: m?.role || (t.created_by === user.id ? 'owner' : 'member'),
-      };
-    });
+    const userTeams = teams
+      .filter(t => isTeamMember(user, t.id))
+      .map(t => {
+        const m = members.find(mem => mem.team_id === t.id && mem.user_id === user.id);
+        return {
+          ...t,
+          role: m?.role || (t.created_by === user.id ? 'owner' : 'member'),
+        };
+      });
     return jsonResponse(userTeams);
   }
 
@@ -243,6 +295,9 @@ async function handleLocalApi(path, method, body, headers) {
     const teams = getStorage(STORAGE_KEYS.TEAMS, []);
     const team = teams.find(t => t.id === teamId);
     if (!team) return jsonResponse({ error: 'team not found' }, 404);
+    if (!isTeamMember(getUserFromToken(headers), teamId)) {
+      return jsonResponse({ error: 'You are not a member of this team' }, 403);
+    }
 
     const allMembers = getStorage(STORAGE_KEYS.TEAM_MEMBERS, []);
     const users = getStorage(STORAGE_KEYS.USERS, []);
@@ -269,6 +324,10 @@ async function handleLocalApi(path, method, body, headers) {
   if (inviteMatch && method === 'POST') {
     const teamId = inviteMatch[1];
     const { email } = body || {};
+    const inviter = getUserFromToken(headers);
+    if (!isTeamMember(inviter, teamId)) {
+      return jsonResponse({ error: 'You are not a member of this team' }, 403);
+    }
     const users = getStorage(STORAGE_KEYS.USERS, []);
     const existing = users.find(u => u.email?.toLowerCase() === email?.toLowerCase());
     if (existing) {
@@ -284,22 +343,68 @@ async function handleLocalApi(path, method, body, headers) {
       }
       return jsonResponse({ added: true, user: existing });
     }
-    const token = `inv-${Math.random().toString(36).slice(2, 12)}`;
+    // No account yet: store a pending invitation (7-day expiry) redeemable by token
+    const token = `inv-${Math.random().toString(36).slice(2, 12)}${Math.random().toString(36).slice(2, 12)}`;
+    const invitations = getStorage(STORAGE_KEYS.INVITATIONS, []);
+    invitations.push({
+      token,
+      team_id: teamId,
+      email: (email || '').toLowerCase(),
+      invited_by: inviter.id,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      accepted_at: null,
+    });
+    setStorage(STORAGE_KEYS.INVITATIONS, invitations);
     return jsonResponse({ token, invited: true });
   }
 
   // 9. Invitations: Accept
   if (pathname === '/api/invitations/accept' && method === 'POST') {
-    return jsonResponse({ success: true });
+    const user = getUserFromToken(headers);
+    if (!user) return jsonResponse({ error: 'unauthorized' }, 401);
+    const invitations = getStorage(STORAGE_KEYS.INVITATIONS, []);
+    const invite = invitations.find(i => i.token === body?.token);
+    if (!invite) return jsonResponse({ error: 'Invitation not found' }, 404);
+    if (invite.accepted_at) return jsonResponse({ error: 'Invitation has already been used' }, 410);
+    if (new Date(invite.expires_at) < new Date()) return jsonResponse({ error: 'Invitation has expired' }, 410);
+
+    const members = getStorage(STORAGE_KEYS.TEAM_MEMBERS, []);
+    if (!members.some(m => m.team_id === invite.team_id && m.user_id === user.id)) {
+      members.push({
+        team_id: invite.team_id,
+        user_id: user.id,
+        role: 'member',
+        joined_at: new Date().toISOString(),
+      });
+      setStorage(STORAGE_KEYS.TEAM_MEMBERS, members);
+    }
+    invite.accepted_at = new Date().toISOString();
+    setStorage(STORAGE_KEYS.INVITATIONS, invitations);
+
+    const team = getStorage(STORAGE_KEYS.TEAMS, []).find(t => t.id === invite.team_id);
+    return jsonResponse({
+      success: true,
+      teamId: invite.team_id,
+      message: `Successfully joined ${team?.name || 'the team'}!`,
+    });
   }
 
   // 10. Deliverables: List
   const delivMatch = pathname.match(/^\/api\/teams\/([a-zA-Z0-9_-]+)\/deliverables$/);
   if (delivMatch && method === 'GET') {
     const teamId = delivMatch[1];
+    const user = getUserFromToken(headers);
+    if (!isTeamMember(user, teamId)) {
+      return jsonResponse({ error: 'You are not a member of this team' }, 403);
+    }
     const all = getStorage(STORAGE_KEYS.DELIVERABLES, []);
-    const deliverables = all.filter(d => d.team_id === teamId || !d.team_id);
-    return jsonResponse({ deliverables, canEdit: true });
+    let deliverables = all.filter(d => d.team_id === teamId || !d.team_id);
+    if (deliverables.length === 0) {
+      // First visit to a new team: seed the five empty deliverable anchors
+      deliverables = defaultDeliverables(teamId);
+      setStorage(STORAGE_KEYS.DELIVERABLES, [...all, ...deliverables]);
+    }
+    return jsonResponse({ deliverables, canEdit: isTeamOwner(user, teamId) });
   }
 
   // 11. Deliverables: Update
@@ -307,6 +412,9 @@ async function handleLocalApi(path, method, body, headers) {
   if (delivUpdateMatch && method === 'PUT') {
     const teamId = delivUpdateMatch[1];
     const deliverableId = delivUpdateMatch[2];
+    if (!isTeamOwner(getUserFromToken(headers), teamId)) {
+      return jsonResponse({ error: 'Only the team creator can update deliverables' }, 403);
+    }
     const all = getStorage(STORAGE_KEYS.DELIVERABLES, []);
     const idx = all.findIndex(d => (d.team_id === teamId || !d.team_id) && d.id === deliverableId);
     if (idx !== -1) {
@@ -327,23 +435,24 @@ async function handleLocalApi(path, method, body, headers) {
     const filtered = teamId
       ? tasks.filter(t => t.team_id === teamId || t.teamId === teamId)
       : tasks;
-    return jsonResponse(filtered);
+    return jsonResponse(filtered.map(normalizeTask));
   }
 
   // 13. Tasks: Create
   if (pathname === '/api/tasks' && method === 'POST') {
     const user = getUserFromToken(headers);
     const tasks = getStorage(STORAGE_KEYS.TASKS, []);
-    const newTask = {
+    const newTask = normalizeTask({
       ...body,
       id: body.id || `task-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
       created_by: user?.id || null,
-      created_date: body.created_date || new Date().toISOString().slice(0, 10),
+      createdDate: body.createdDate || body.created_date || new Date().toISOString().slice(0, 10),
+      teamId: body.teamId || body.team_id || null,
       status: body.status || 'todo',
       type: body.type || 'feature',
       assignee: body.assignee || '',
       context: body.context || '',
-    };
+    });
     tasks.unshift(newTask);
     setStorage(STORAGE_KEYS.TASKS, tasks);
     return jsonResponse(newTask, 201);
@@ -356,7 +465,14 @@ async function handleLocalApi(path, method, body, headers) {
     const tasks = getStorage(STORAGE_KEYS.TASKS, []);
     const idx = tasks.findIndex(t => t.id === taskId);
     if (idx !== -1) {
-      tasks[idx] = { ...tasks[idx], ...body, id: taskId };
+      // Only the team creator (owner) may reassign a task
+      const existing = tasks[idx];
+      if (body && 'assignee' in body && (body.assignee || '') !== (existing.assignee || '')) {
+        const teamId = existing.team_id || existing.teamId;
+        if (!isTeamOwner(getUserFromToken(headers), teamId)) return jsonResponse({ error: 'Only the team creator can reassign tasks' }, 403);
+      }
+      // Normalise first so the incoming camelCase fields override stale snake_case ones
+      tasks[idx] = normalizeTask({ ...normalizeTask(existing), ...body, id: taskId });
       setStorage(STORAGE_KEYS.TASKS, tasks);
       return jsonResponse(tasks[idx]);
     }

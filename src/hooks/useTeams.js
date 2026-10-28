@@ -21,7 +21,6 @@ export function useTeams(token) {
     _setActiveTeamId(id);
     if (id) localStorage.setItem(ACTIVE_TEAM_KEY, id);
     else    localStorage.removeItem(ACTIVE_TEAM_KEY);
-    setTeamDetail(null);
   }, []);
 
   // Load teams list
@@ -106,7 +105,8 @@ export function useTeams(token) {
     loading,
     activeTeam,
     activeTeamId,
-    teamDetail,
+    // Hide stale detail from a previously active team while the new one loads
+    teamDetail: teamDetail?.id === activeTeamId ? teamDetail : null,
     setActiveTeamId,
     createTeam,
     fetchTeam,
