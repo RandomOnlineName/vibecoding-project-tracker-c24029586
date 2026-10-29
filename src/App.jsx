@@ -8,6 +8,7 @@ import ProfilePage from './pages/ProfilePage.jsx';
 
 import DeliverablesPinnedBoard from './components/DeliverablesPinnedBoard.jsx';
 import Wordmark from './components/Wordmark.jsx';
+import ThemeToggle from './components/ThemeToggle.jsx';
 import MarkdownPreview, { EditorModeToggle } from './components/MarkdownPreview.jsx';
 import { CONTEXT_TEMPLATE, cleanContext, isContextEmpty, buildModelPrompt } from './services/promptFormat.js';
 
@@ -614,6 +615,7 @@ export function TaskEditorPage({ task, teamMembers, assigneeHandles = {}, curren
               {saveError}
             </span>
           )}
+          <ThemeToggle />
           <button
             type="button"
             onClick={handleCopyPrompt}
@@ -785,7 +787,7 @@ export function TaskEditorPage({ task, teamMembers, assigneeHandles = {}, curren
                     placeholder={`Paste resources for the agent (logs, stack traces, files, docs) and the REASONS canvas instructions here.\n\nUse "Insert SPDD Template" for the standard structure:\n## Resources → Logs · Stack trace · Relevant files & docs\n## REASONS Canvas → Requirements · Entities · Approach · Structure · Operations · Norms · Safeguards`}
                     value={form.context}
                     onChange={(e) => setForm({ ...form, context: e.target.value })}
-                    className="field bg-surface-code font-mono text-xs text-[#c9d4e0] p-4 leading-relaxed resize-y selection:bg-brand-primary selection:text-white"
+                    className="field bg-surface-code font-mono text-xs text-text-primary p-4 leading-relaxed resize-y selection:bg-brand-primary selection:text-white"
                   />
                   {contextMode !== 'write' && (
                     <PreviewPane
@@ -977,7 +979,7 @@ export function TaskEditorPage({ task, teamMembers, assigneeHandles = {}, curren
                     placeholder={`Paste the prompts you used into this prompt history box while working on the problem...\n\nExample:\n### [2026-10-26 14:15] Claude 3.5 Sonnet\nWrite an Express route to fetch all team members and their roles.\n\n---\n\n### [2026-10-26 14:32] Cursor\nRefactor the query to include joined_at date and order by role.\n\n---\n\n### [2026-10-26 15:05] ChatGPT\nHelp write the SQL migration to add prompt_history mediumtext to the tasks table.`}
                     value={form.promptHistory}
                     onChange={(e) => setForm({ ...form, promptHistory: e.target.value })}
-                    className="field bg-surface-code font-mono text-xs text-[#d4dcf5] p-4 leading-relaxed resize-y selection:bg-purple-600 selection:text-white"
+                    className="field bg-surface-code font-mono text-xs text-text-primary p-4 leading-relaxed resize-y selection:bg-purple-600 selection:text-white"
                   />
                   {historyMode !== 'write' && (
                     <PreviewPane
@@ -1547,6 +1549,7 @@ export default function App() {
           </div>
 
           <nav aria-label="Account" className="flex items-center gap-1">
+            <ThemeToggle />
             <button
               type="button"
               onClick={() => { window.location.hash = '#/profile'; setRoute('profile'); }}

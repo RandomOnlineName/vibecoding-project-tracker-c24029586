@@ -1,6 +1,6 @@
 # Vibecoding Project Tracker — Design
 
-**Status:** Design doc finalized · High-contrast, utilitarian dark UI in the tradition of MDN Web Docs and GitLab (Pajamas).
+**Status:** Design doc finalized · High-contrast, utilitarian dark-first UI (with a light theme, §2.5) in the tradition of MDN Web Docs and GitLab (Pajamas).
 
 ---
 
@@ -32,7 +32,7 @@ The images saved in the workspace define the visual language:
 
 ## 2. Color palette
 
-All values are defined as Tailwind tokens in `tailwind.config.js`. Ratios are measured against `surface-page` unless noted.
+All values are defined as Tailwind tokens in `tailwind.config.js`, backed by CSS variables in `src/index.css` so they can switch theme (§2.5). Ratios are measured against `surface-page` unless noted. The tables below are the dark (default) theme.
 
 ### 2.1 Brand & Surfaces
 
@@ -108,6 +108,19 @@ To keep the two scales from competing on the same row:
 ├──────────────────────────────────────────────┤ │             <- 1px divider, no card box
 ▌ (● FEATURE)                    (● In 4 days) │ │
 ```
+
+### 2.5 Light theme
+
+A sun / moon icon button in the top bar (board: left of the username; task editor: left of "Copy as Prompt Context") switches between dark (default) and light. The choice is saved per browser (`vt_theme` in localStorage); with nothing saved, the OS `prefers-color-scheme` decides. An inline script in `index.html` sets `<html data-theme>` before first paint so there's no flash.
+
+Token names don't change; only the values do (`[data-theme="light"]` in `src/index.css`). Light keeps the same structure and rules, with these values:
+
+- **Surfaces:** page `#f7f7f8`, column `#eceef1`, card `#ffffff`, elevated `#e2e5e9`, code `#f3f4f6`. Borders: subtle `#d3d6dc`, strong `#6b7079` (4.6:1).
+- **Text:** primary `#16171a` (16.9:1), muted `#474c55` (8.2:1), subtle `#5f6570` (5.6:1).
+- **Accent:** `brand-accent` darkens to `#1d4ed8` (6.3:1); `brand-primary` stays `#2563eb`.
+- **Scales:** type, significance and status hues move to their 700 weights (e.g. urgent `#b91c1c`, bug `#c2410c`, feature `#1d4ed8`, additional `#7e22ce`, soon `#b45309`) so coloured text still clears 4.5:1 on the pale page.
+
+Don't hard-code colours (hex, `text-white` on surfaces, Tailwind palette shades): they won't follow the theme.
 
 ---
 
@@ -204,7 +217,6 @@ No emoji in UI chrome. Use text tags instead (e.g. `Read-Only`).
 
 ## 8. Out of Scope (This Hackathon)
 
-- A light mode toggle. We ship one polished high-contrast dark theme.
-- Multiple themes.
+- Themes beyond the dark default and its light counterpart (§2.5).
 - Complex physics-based animation (motion is limited to 150ms fades).
 - A custom icon set (we use standard inline SVG / Lucide-style strokes).

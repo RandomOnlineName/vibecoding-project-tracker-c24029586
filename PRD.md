@@ -89,6 +89,7 @@
 * **Full-width task editor:** The task edit screen uses the full window width, with a fixed-width Properties sidebar and the editor column taking the rest.
 * **Structured context (SPDD):** AI Context Window uses a template with a Resources section (logs, stack trace, relevant files & docs) and a REASONS canvas (Requirements, Entities, Approach, Structure, Operations, Norms, Safeguards) for Structured Prompt-Driven Development. New tasks start with it, "Insert SPDD Template" adds it to existing tasks, and empty sections are pruned when copying or saving.
 * **Copy as Prompt Context:** Separate button that copies task metadata, problem description and context as one model-ready prompt; "Copy Context" copies the context alone.
+* **Light / dark mode:** Sun / moon toggle in the board's top bar (left of the username) and the task editor's top bar (left of "Copy as Prompt Context"). The choice is remembered per browser; with none saved it follows the OS setting. Both themes keep WCAG AA text contrast.
 * **Board filtering & sorting:** "My Tasks" filter; sort by deadline or created date; live task count; urgency legend.
 * **Deliverables board extras:** Collapsible pinned board with linked/completed counts and progress bar; copy/open link buttons.
 * **Storage / deployment:** Client-side localStorage backend (mock API) for the deployed demo; optional SQLite/MariaDB server and Vercel deployment.
