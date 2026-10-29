@@ -9,7 +9,7 @@
 
 * **Task Management:**
   * **Add Tasks:** Create new tasks with title, description, category, and due date.
-  * **Edit Tasks:** Update task details, status (`To Do`, `In Progress`, `Review`, `Done`), and delete/archive.
+  * **Edit Tasks:** Update task details, status (`To Do`, `In Progress`, `Review`, `Done`), and delete.
   * **Task Categories:** Classify tasks (e.g., Feature vs. Bug).
   * **Assignment & Claiming:** Assign tasks to teammates, self-claim unassigned tasks, and reassign handoffs.
   * **Due Dates:** Set and track task deadlines.
@@ -79,9 +79,10 @@
 * **Shared deliverables editing:** Any team member can edit deliverable links, labels and status.
 * **Self handoff:** Members who aren't the team creator can reassign tasks currently assigned to them (in the task editor); the server enforces the same rule. A hint under the editor's Assignee field shows when the user can do this.
 * **Handoff:** Reassigning is done from the task editor's Assignee field (not from the board), with a handoff confirmation toast.
-* **GitHub handles on assignees:** Wherever an assignee is shown or picked (task rows, editor Assignee dropdown, handoff toast), the member's GitHub handle appears in brackets, e.g. "Sofia Chen (@sofiac-codes)"; members without a handle show just their name.
+* **GitHub handles on assignees:** Wherever an assignee is shown or picked (task rows, editor Assignee dropdown, handoff toast), the member's GitHub handle appears in brackets, e.g. "Teammate B (@teammate-b)"; members without a handle show just their name.
 * **Extra task categories:** `urgent` and `additional` alongside `feature` and `bug`.
 * **Prompt history log:** Separate `promptHistory` field per task, with "Quick Append" for timestamped, tool-tagged entries and "Copy All Prompts".
+* **Quick Append metadata:** Optional git commit hash and tokens-used fields on Quick Append, recorded on the entry as "Commit: `abc1234` · Tokens: 12,400"; invalid values are flagged inline. The prompt itself is wrapped in a fenced code block so any pasted markdown is shown literally. Each entry's heading also names who appended it, with their GitHub handle if set (e.g. "Claude · Teammate A (@teammate-a)").
 * **Editor views:** Full-page task editor with stacked / context-only / history-only views; keyboard shortcuts (Ctrl+S save, Esc back).
 * **Markdown preview:** Write / Split / Preview toggle on the AI Context Window and Prompt History Box, rendering sanitised markdown (headings, lists, code blocks, tables, links). Split shows the editor and a live preview side by side inside the box (stacked on narrow screens).
 * **Full-width task editor:** The task edit screen uses the full window width, with a fixed-width Properties sidebar and the editor column taking the rest.

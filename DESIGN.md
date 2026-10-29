@@ -104,7 +104,7 @@ To keep the two scales from competing on the same row:
 ▌ (● URGENT FIX)                 (● Need Today)│ ▌ ...         <- left rule = significance,
 ▌ Database timeout during bulk task fetch      │ │                rounded tags = type / due date
 ▌ Pooling exhausts after 30 concurrent reqs…   │ │
-▌ [AR] Alex Reed               Claude (2k)     │ │
+▌ [TE] Teammate A       Claude (2k chars)      │ │
 ├──────────────────────────────────────────────┤ │             <- 1px divider, no card box
 ▌ (● FEATURE)                    (● In 4 days) │ │
 ```

@@ -197,13 +197,32 @@ export function useTasks(token, activeTeamId) {
 }
 
 /**
- * Display name with the member's GitHub handle in brackets, e.g. "Sofia Chen (@sofiac-codes)".
+ * Display name with the member's GitHub handle in brackets, e.g. "Teammate B (@teammate-b)".
  * `handles` maps member name → handle; members without a handle show just the name.
  */
 function withGithub(name, handles = {}) {
   if (!name) return name;
   const handle = String(handles[name] || '').trim().replace(/^@/, '');
   return handle ? `${name} (@${handle})` : name;
+}
+
+/**
+ * Counts "### [timestamp]" entry headings in the prompt history, skipping fenced code blocks
+ * so headings inside a pasted prompt aren't counted. Free text with no headings counts as one.
+ */
+function countHistoryEntries(history) {
+  let count = 0;
+  let fence = null;
+  for (const line of history.split('\n')) {
+    const marker = line.match(/^(`{3,}|~{3,})/);
+    if (marker) {
+      if (!fence) fence = marker[1];
+      else if (marker[1][0] === fence[0] && marker[1].length >= fence.length && !line.slice(marker[1].length).trim()) fence = null;
+    } else if (!fence && /^### \[/.test(line)) {
+      count += 1;
+    }
+  }
+  return count || 1;
 }
 
 /** Character count with an explicit "chars" suffix so it isn't read as a word count. */
@@ -395,7 +414,7 @@ function PreviewPane({ id, label, source, split, sizeClass }) {
   );
 }
 
-export function TaskEditorPage({ task, teamMembers, assigneeHandles = {}, canReassign = false, onBack, onSave, onDelete }) {
+export function TaskEditorPage({ task, teamMembers, assigneeHandles = {}, currentUserName = '', canReassign = false, onBack, onSave, onDelete }) {
   const isEditing = Boolean(task?.id);
 
   const [form, setForm] = useState({
@@ -419,6 +438,8 @@ export function TaskEditorPage({ task, teamMembers, assigneeHandles = {}, canRea
   const [copyPromptToast, setCopyPromptToast] = useState(false);
   const [quickPromptText, setQuickPromptText] = useState('');
   const [quickPromptTool, setQuickPromptTool] = useState(task?.contextTool || 'Claude');
+  const [quickPromptCommit, setQuickPromptCommit] = useState('');
+  const [quickPromptTokens, setQuickPromptTokens] = useState('');
   const [showQuickPromptBox, setShowQuickPromptBox] = useState(false);
   const [contextMode, setContextMode] = useState('write'); // 'write' | 'split' | 'preview'
   const [historyMode, setHistoryMode] = useState('write');
@@ -512,18 +533,38 @@ export function TaskEditorPage({ task, teamMembers, assigneeHandles = {}, canRea
     }
   };
 
+  // Optional Quick Append metadata: a git commit hash (short or full SHA-1/SHA-256) and tokens used
+  const commitHash = quickPromptCommit.trim();
+  const commitInvalid = commitHash !== '' && !/^[0-9a-f]{4,64}$/i.test(commitHash);
+  const tokensRaw = quickPromptTokens.trim().replace(/[,\s_]/g, '');
+  const tokensInvalid = tokensRaw !== '' && !/^\d+$/.test(tokensRaw);
+
   const handleAppendPrompt = (e) => {
     if (e) e.preventDefault();
-    if (!quickPromptText.trim()) return;
+    if (!quickPromptText.trim() || commitInvalid || tokensInvalid) return;
     const now = new Date();
     const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const separator = form.promptHistory.trim() ? '\n\n---\n\n' : '';
-    const entry = `${separator}### [${timeStr}] ${quickPromptTool}\n${quickPromptText.trim()}`;
+    const meta = [
+      commitHash && `Commit: \`${commitHash.toLowerCase()}\``,
+      tokensRaw && `Tokens: ${Number(tokensRaw).toLocaleString('en-GB')}`,
+    ].filter(Boolean).join(' · ');
+    // Wrap the prompt in a fenced code block so pasted markdown shows literally. The fence is one
+    // backtick longer than any backtick run in the prompt, so nothing inside can close it early.
+    const promptText = quickPromptText.trim();
+    const longestTicks = Math.max(0, ...(promptText.match(/`+/g) || []).map((run) => run.length));
+    const fence = '`'.repeat(Math.max(3, longestTicks + 1));
+    // Credit the person appending, e.g. "Claude · Teammate A (@teammate-a)"
+    const author = withGithub(currentUserName, assigneeHandles);
+    const heading = `### [${timeStr}] ${quickPromptTool}${author ? ` · ${author}` : ''}`;
+    const entry = `${separator}${heading}\n${meta ? `${meta}\n\n` : ''}${fence}text\n${promptText}\n${fence}`;
     setForm(prev => ({
       ...prev,
       promptHistory: (prev.promptHistory || '') + entry,
     }));
     setQuickPromptText('');
+    setQuickPromptCommit('');
+    setQuickPromptTokens('');
     setShowQuickPromptBox(false);
   };
 
@@ -779,7 +820,7 @@ export function TaskEditorPage({ task, teamMembers, assigneeHandles = {}, canRea
                     </span>
                     {form.promptHistory && (
                       <span className="text-[11px] font-mono text-text-muted">
-                        ~{(form.promptHistory.match(/### \[/g) || [1]).length} entry/entries
+                        ~{countHistoryEntries(form.promptHistory)} entry/entries
                       </span>
                     )}
                   </div>
@@ -854,6 +895,54 @@ export function TaskEditorPage({ task, teamMembers, assigneeHandles = {}, canRea
                       className="field bg-surface-code font-mono text-xs p-2.5"
                     />
 
+                    {/* Optional metadata */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="quick-prompt-commit" className="field-label">
+                          Git commit <span className="font-normal normal-case tracking-normal text-text-muted">(optional)</span>
+                        </label>
+                        <input
+                          id="quick-prompt-commit"
+                          type="text"
+                          autoComplete="off"
+                          spellCheck={false}
+                          placeholder="e.g. 4f539dc"
+                          value={quickPromptCommit}
+                          onChange={(e) => setQuickPromptCommit(e.target.value)}
+                          aria-invalid={commitInvalid}
+                          aria-describedby={commitInvalid ? 'quick-prompt-commit-error' : undefined}
+                          className={`field font-mono text-xs ${commitInvalid ? 'border-status-danger' : ''}`}
+                        />
+                        {commitInvalid && (
+                          <p id="quick-prompt-commit-error" className="mt-1 text-[11px] text-status-danger">
+                            Use a commit hash: 4–64 hex characters (0–9, a–f).
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <label htmlFor="quick-prompt-tokens" className="field-label">
+                          Tokens used <span className="font-normal normal-case tracking-normal text-text-muted">(optional)</span>
+                        </label>
+                        <input
+                          id="quick-prompt-tokens"
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          placeholder="e.g. 12,400"
+                          value={quickPromptTokens}
+                          onChange={(e) => setQuickPromptTokens(e.target.value)}
+                          aria-invalid={tokensInvalid}
+                          aria-describedby={tokensInvalid ? 'quick-prompt-tokens-error' : undefined}
+                          className={`field font-mono text-xs ${tokensInvalid ? 'border-status-danger' : ''}`}
+                        />
+                        {tokensInvalid && (
+                          <p id="quick-prompt-tokens-error" className="mt-1 text-[11px] text-status-danger">
+                            Enter a whole number, e.g. 12400 or 12,400.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-end gap-2">
                       <button
                         type="button"
@@ -865,7 +954,7 @@ export function TaskEditorPage({ task, teamMembers, assigneeHandles = {}, canRea
                       <button
                         type="button"
                         onClick={handleAppendPrompt}
-                        disabled={!quickPromptText.trim()}
+                        disabled={!quickPromptText.trim() || commitInvalid || tokensInvalid}
                         className="btn-primary pr-4"
                       >
                         + Append to Log
@@ -1408,6 +1497,7 @@ export default function App() {
         task={activeEditorTask}
         teamMembers={teamMembersList}
         assigneeHandles={assigneeHandles}
+        currentUserName={user?.name || ''}
         canReassign={canReassignTask(activeEditorTask)}
         onBack={() => setActiveEditorTask(null)}
         onSave={async (formData) => {

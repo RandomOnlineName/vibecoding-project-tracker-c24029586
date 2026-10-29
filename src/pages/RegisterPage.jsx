@@ -89,7 +89,7 @@ export default function RegisterPage({ onRegister, onGoLogin }) {
                 Account Details
               </legend>
               <div className="space-y-3">
-                {field('Full Name', 'name', 'text', 'Alex Reed', 'name')}
+                {field('Full Name', 'name', 'text', 'Your name', 'name')}
                 {field('Email', 'email', 'email', 'you@example.com', 'email')}
                 {field('Password', 'password', 'password', 'Min. 8 characters', 'new-password')}
                 {field('Confirm Password', 'confirm', 'password', '••••••••', 'new-password')}

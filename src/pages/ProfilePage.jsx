@@ -104,7 +104,7 @@ export default function ProfilePage({ user, onUpdate, onBack }) {
             <form onSubmit={saveProfile} className="space-y-4">
               <div>
                 <label htmlFor="profile-name" className="field-label">Full Name</label>
-                <input id="profile-name" type="text" autoComplete="name" value={form.name} onChange={setF('name')} required className="field" placeholder="Alex Reed" />
+                <input id="profile-name" type="text" autoComplete="name" value={form.name} onChange={setF('name')} required className="field" placeholder="Your name" />
               </div>
 
               <div>

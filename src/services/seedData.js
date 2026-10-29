@@ -1,5 +1,22 @@
 // Bump when seeded task content changes; mockFetch refreshes seeded tasks' context on mismatch
-export const SEED_VERSION = 2;
+export const SEED_VERSION = 4;
+
+// Seed tasks added after the first release, with the version that added them. Browsers seeded
+// before that version get them added once (tasks a user deleted afterwards are not re-added).
+export const TASKS_ADDED_IN = {
+  'task-ffx7split': 4,
+};
+
+// v3 replaced the five named demo users with Teammate A/B/C. Browsers seeded earlier are
+// migrated: old demo accounts are renamed or removed and their tasks reassigned by name.
+export const LEGACY_ASSIGNEES = {
+  'Alex Reed': 'Teammate A',
+  'Sofia Chen': 'Teammate B',
+  'Tom Walker': 'Teammate B',
+  'James Obi': 'Teammate C',
+  'Priya Nair': 'Teammate C',
+};
+export const RETIRED_USER_IDS = ['uid-vgt9fr2ix', 'uid-4rc1shat1'];
 
 const fence = (src, lang = 'text') => '```' + lang + '\n' + src + '\n```';
 const bullets = (items) => items.map((x) => `- ${x}`).join('\n');
@@ -40,43 +57,28 @@ export default {
   "users": [
     {
       "id": "uid-1sbr6uqnk",
-      "name": "Alex Reed",
-      "email": "alex.reed@vibetrack.dev",
-      "github_handle": "alex-reed-dev",
-      "vscode_profile": "alex.reed",
+      "name": "Teammate A",
+      "email": "teammate.a@vibetrack.dev",
+      "github_handle": "teammate-a",
+      "vscode_profile": "teammate.a",
       "default_llm_tool": "Claude"
     },
     {
       "id": "uid-a3tmkrk5g",
-      "name": "Sofia Chen",
-      "email": "sofia.chen@vibetrack.dev",
-      "github_handle": "sofiac-codes",
-      "vscode_profile": "sofia.chen",
+      "name": "Teammate B",
+      "email": "teammate.b@vibetrack.dev",
+      "github_handle": "teammate-b",
+      "vscode_profile": "teammate.b",
       "default_llm_tool": "ChatGPT"
     },
     {
+      // No GitHub handle, to show how assignees without one are displayed
       "id": "uid-9r64q5tqz",
-      "name": "James Obi",
-      "email": "james.obi@vibetrack.dev",
-      "github_handle": "james-obi-ui",
-      "vscode_profile": "james.obi",
+      "name": "Teammate C",
+      "email": "teammate.c@vibetrack.dev",
+      "github_handle": null,
+      "vscode_profile": "teammate.c",
       "default_llm_tool": "Cursor"
-    },
-    {
-      "id": "uid-vgt9fr2ix",
-      "name": "Priya Nair",
-      "email": "priya.nair@vibetrack.dev",
-      "github_handle": "priyanair-dev",
-      "vscode_profile": "priya.nair",
-      "default_llm_tool": "Gemini"
-    },
-    {
-      "id": "uid-4rc1shat1",
-      "name": "Tom Walker",
-      "email": "tom.walker@vibetrack.dev",
-      "github_handle": "tom-walker-ux",
-      "vscode_profile": "tom.walker",
-      "default_llm_tool": "Copilot"
     }
   ],
   "team": {
@@ -88,12 +90,66 @@ export default {
   },
   "tasks": [
     {
+      "id": "task-ffx7split",
+      "title": "Firefox browser inconsistency",
+      "description": "The task editor displays improperly in Firefox. With the AI Context Window in Split view, the markdown preview pane does not match the height of the textarea beside it: it collapses to a thin strip at the top of its column and the rendered markdown spills down over the Prompt History Box below. The page also gains a horizontal scrollbar at 1280px wide. Chrome and Edge render the same page correctly. Reproduced on Firefox 131 (Windows 11 and macOS 14); Firefox users on the team have had to switch to Write-only mode to work.",
+      "type": "urgent",
+      "status": "todo",
+      "assignee": "Teammate A",
+      "due_date": "2026-10-29",
+      "created_date": "2026-10-29",
+      "context": spdd({
+        logs: "Firefox 131.0.3 (64-bit), Windows 11, viewport 1280x800, devicePixelRatio 1\nNo console errors or warnings on load or when toggling Split\nLayout inspector: div#task-context-preview → position: absolute; inset: 0; computed height 0px\nGrid cell (parent) computed height: auto → 0px (no in-flow children)\nChrome 130 same page: grid cell height 352px (stretched to row), preview height 352px",
+        stack: "No stack trace: nothing crashes or throws; this is a rendering difference only.",
+        files: [
+          'src/App.jsx: PreviewPane (split wrapper) and TaskEditorPage (AI Context / Prompt History sections)',
+          'src/components/MarkdownPreview.jsx: MarkdownPreview root element',
+          'src/index.css: .md-preview, .field',
+          'MDN: CSS grid "align-self: stretch" and abspos children of grid items',
+        ],
+        problem: 'In Firefox the markdown preview (div#task-context-preview) renders at 0px height at the top of the right-hand split column, when it should fill the column at the same height as the textarea.',
+        done: 'In Split view the preview pane fills its column at the same height as the textarea, scrolls internally, and does not overlap the content below, in Firefox and in Chromium browsers (Chrome, Edge) at 1024px, 1280px and 1920px widths.',
+        entities: [
+          'div#task-context-preview and div#task-history-preview: the rendered markdown panes',
+          'textarea#task-context and textarea#task-history: the editors they sit beside',
+          'Tailwind classes involved: grid, lg:grid-cols-2, relative, lg:absolute, lg:inset-0, lg:min-h-0, lg:max-h-none, .md-preview',
+          'Split view: the Write / Split / Preview toggle mode that shows the editor and a live preview side by side',
+          'Grid stretch: a grid item with align-self: stretch fills the row height; its abspos child sizes against it',
+        ],
+        approach: [
+          'Analyse the known differences in behaviour between browsers and output them to the developer in a list',
+          'Search the codebase for usage of the features that cause disparity between browsers',
+          'Evaluate which usages of these features are related to the page that is broken',
+        ],
+        structure: [
+          'src/App.jsx → PreviewPane wraps MarkdownPreview in div.relative when split',
+          'src/App.jsx → TaskEditorPage renders <div class="grid grid-cols-1 lg:grid-cols-2 gap-3"> containing the textarea and PreviewPane',
+          'src/components/MarkdownPreview.jsx → div.md-preview (role="region", overflow-auto)',
+          'src/index.css → @layer components (.md-preview typography, .field)',
+        ],
+        operations: [
+          'Make individual changes and prompt the developer to see if that fixed the issue',
+          'Repeat until the developer gives extra instruction or the bug is fixed',
+        ],
+        norms: ['Modify as little of the project as is needed to fix this bug', ...REACT_NORMS],
+        safeguards: [
+          'Do not change any backend behaviour',
+          'Do not modify frontend logic flow (Write / Split / Preview state, save, copy)',
+        ],
+      }),
+      "context_tool": "Claude",
+      "prompt_history": "",
+      "team_id": "team-uxd-2026",
+      "teamId": "team-uxd-2026",
+      "created_by": "uid-1sbr6uqnk"
+    },
+    {
       "id": "task-r2z3zxcw6",
       "title": "Set up Vite + React + Tailwind scaffold",
       "description": "Initialise the project with Vite, configure React plugin, Tailwind v3 with PostCSS, and verify hot-reload works on localhost:5173. Commit as `git-linked`.",
       "type": "feature",
       "status": "done",
-      "assignee": "Alex Reed",
+      "assignee": "Teammate A",
       "due_date": "2026-10-17",
       "created_date": "2026-10-13",
       "context": spdd({
@@ -120,7 +176,7 @@ export default {
       "description": "Review the pre-written PRD, fill in team-specific TODOs for sections 1–4. Verify data model fields (task fields, user/team fields, deliverable anchors). Tag as `prd-done`.",
       "type": "feature",
       "status": "done",
-      "assignee": "Sofia Chen",
+      "assignee": "Teammate B",
       "due_date": "2026-10-18",
       "created_date": "2026-10-13",
       "context": spdd({
@@ -148,7 +204,7 @@ export default {
       "description": "Define full colour palette (surface hierarchy, brand tokens, type scale, significance scale), typography stack, component principles, and microcopy. Paste design tokens into tailwind.config.js. Tag as `design-done`.",
       "type": "feature",
       "status": "done",
-      "assignee": "James Obi",
+      "assignee": "Teammate C",
       "due_date": "2026-10-19",
       "created_date": "2026-10-14",
       "context": spdd({
@@ -173,7 +229,7 @@ export default {
       "description": "Render the Kanban board with 4 STAGES (todo, in-progress, review, done). Add 3–4 mock tasks to verify column filtering. Implement STAGES constant and Task typedef. Tag as `data-model`.",
       "type": "feature",
       "status": "done",
-      "assignee": "Alex Reed",
+      "assignee": "Teammate A",
       "due_date": "2026-10-20",
       "created_date": "2026-10-15",
       "context": spdd({
@@ -200,7 +256,7 @@ export default {
       "description": "Implement the full task editor page (full-page, not modal). Persist tasks via POST/PUT/DELETE to the Express API. Keyboard shortcut: Ctrl+S to save, Esc to close. Tag as `crud-modal`.",
       "type": "feature",
       "status": "done",
-      "assignee": "Priya Nair",
+      "assignee": "Teammate C",
       "due_date": "2026-10-22",
       "created_date": "2026-10-17",
       "context": spdd({
@@ -226,7 +282,7 @@ export default {
       "description": "Task rows must use the dual-scale colour system: rounded type tag (feature=blue, bug=orange, urgent=red, additional=purple) top-left. Significance rule on the row's left edge. Tag as `tag-style`.",
       "type": "feature",
       "status": "in-progress",
-      "assignee": "James Obi",
+      "assignee": "Teammate C",
       "due_date": "2026-10-27",
       "created_date": "2026-10-21",
       "context": spdd({
@@ -252,7 +308,7 @@ export default {
       "description": "Each card shows a small avatar (initials) and the assignee name. Reassigning happens only in the task editor's Assignee dropdown, with a hint when the viewer may hand it off. Tag as `task-owner`.",
       "type": "feature",
       "status": "in-progress",
-      "assignee": "Sofia Chen",
+      "assignee": "Teammate B",
       "due_date": "2026-10-28",
       "created_date": "2026-10-22",
       "context": spdd({
@@ -278,7 +334,7 @@ export default {
       "description": "Rows change their left-edge rule colour as deadlines approach: rose (overdue/today), amber (≤5 days), sky (≤14 days), slate (later/no date). Done tasks always use neutral slate. Tag as `due-tint`.",
       "type": "feature",
       "status": "in-progress",
-      "assignee": "Priya Nair",
+      "assignee": "Teammate C",
       "due_date": "2026-10-29",
       "created_date": "2026-10-23",
       "context": spdd({
@@ -304,7 +360,7 @@ export default {
       "description": "Add a monospace context field for agent resources (logs, stack traces, files) and REASONS-canvas instructions, with a character counter, markdown preview, SPDD template and \"Copy Context\" button. Tag as `context`.",
       "type": "feature",
       "status": "in-progress",
-      "assignee": "Alex Reed",
+      "assignee": "Teammate A",
       "due_date": "2026-10-28",
       "created_date": "2026-10-24",
       "context": spdd({
@@ -331,7 +387,7 @@ export default {
       "description": "Full JWT auth flow: POST /api/auth/register, POST /api/auth/login, GET /api/auth/me. Token stored in localStorage. Route guard redirects unauthenticated users to login page. Password hashed with bcrypt (12 rounds).",
       "type": "feature",
       "status": "review",
-      "assignee": "Alex Reed",
+      "assignee": "Teammate A",
       "due_date": "2026-10-25",
       "created_date": "2026-10-19",
       "context": spdd({
@@ -357,7 +413,7 @@ export default {
       "description": "Implement multi-team scoping. Users can create teams (becoming owner), invite members by email (with shareable invite tokens), and switch active team. Tasks are filtered by activeTeamId.",
       "type": "feature",
       "status": "review",
-      "assignee": "Sofia Chen",
+      "assignee": "Teammate B",
       "due_date": "2026-10-26",
       "created_date": "2026-10-20",
       "context": spdd({
@@ -388,7 +444,7 @@ export default {
       "description": "The hero feature. Clicking \"Copy as Prompt Context\" formats the task — title, type, status, assignee, due date, target tool, problem description and context — into one block ready to paste into any LLM chat or agent. Tag as `copy-prompt`.",
       "type": "feature",
       "status": "review",
-      "assignee": "Sofia Chen",
+      "assignee": "Teammate B",
       "due_date": "2026-10-30",
       "created_date": "2026-10-24",
       "context": spdd({
@@ -415,7 +471,7 @@ export default {
       "description": "Pin a collapsible Deliverables Board above the Kanban board. Shows 5 deliverable anchors (presentation, demo, report, documentation, deployment). Any team member can set/update URLs and open links. Tag as `project-deliverables`.",
       "type": "feature",
       "status": "todo",
-      "assignee": "James Obi",
+      "assignee": "Teammate C",
       "due_date": "2026-10-31",
       "created_date": "2026-10-25",
       "context": spdd({
@@ -445,7 +501,7 @@ export default {
       "description": "Deploy frontend to Vercel free tier. Import GitHub fork, accept auto-detected Vite config, deploy. Add the resulting URL to the Deployment deliverable anchor. Test that the backend API (separate deploy or local tunnel) resolves correctly.",
       "type": "feature",
       "status": "todo",
-      "assignee": "Priya Nair",
+      "assignee": "Teammate C",
       "due_date": "2026-11-01",
       "created_date": "2026-10-26",
       "context": spdd({
@@ -471,7 +527,7 @@ export default {
       "description": "The standout differentiator for M12. Pre-fill the REASONS canvas from the task's type (feature → user-story canvas, bug → debug canvas, urgent → hotfix canvas) so \"Copy as Prompt Context\" produces a strong prompt with minimal typing.",
       "type": "additional",
       "status": "todo",
-      "assignee": "Tom Walker",
+      "assignee": "Teammate B",
       "due_date": "2026-11-02",
       "created_date": "2026-10-26",
       "context": spdd({
@@ -496,14 +552,14 @@ export default {
       "description": "Populate the tracker with a realistic dataset that tells a coherent story during the pitch: mix of completed features, in-progress work, bugs being fixed, and upcoming deliverables. Run the seed script: `npm run db:seed`. Tag as `pitch-ready`.",
       "type": "additional",
       "status": "todo",
-      "assignee": "Alex Reed",
+      "assignee": "Teammate A",
       "due_date": "2026-11-03",
       "created_date": "2026-10-27",
       "context": spdd({
         files: ['src/services/seedData.js (browser demo)', 'server/seed.js (npm run db:seed)', 'All demo passwords: password123'],
         problem: 'The demo board needs to tell a believable story in under a minute.',
         done: 'Every column has tasks; each task context shows Resources + a filled REASONS canvas; deliverables show mixed progress.',
-        entities: ['5 users (Alex Reed owner)', '23 tasks across 4 stages', '5 deliverable anchors'],
+        entities: ['3 users (Teammate A owner, Teammate B, Teammate C)', '24 tasks across 4 stages', '5 deliverable anchors'],
         approach: ['Each seeded context uses the same spdd() builder as the template'],
         operations: ['Write the tasks', 'Bump SEED_VERSION so existing browsers refresh contexts', 'Run through the pitch script'],
         norms: ['Realistic names, dates relative to the hackathon week'],
@@ -521,7 +577,7 @@ export default {
       "description": "Server throws \"ER_TRUNCATED_WRONG_VALUE_FOR_FIELD\" when submitting tasks without an explicit type field. The parseTask function must default type to \"feature\" and validate against the TYPES constant before INSERT.",
       "type": "bug",
       "status": "done",
-      "assignee": "Alex Reed",
+      "assignee": "Teammate A",
       "due_date": "2026-10-21",
       "created_date": "2026-10-18",
       "context": spdd({
@@ -548,7 +604,7 @@ export default {
       "description": "After logout, if a user registers with a new account, the stale activeTeamId from localStorage causes a 403 \"not a member of this team\" error on all task requests. Clear vt_active_team on logout.",
       "type": "bug",
       "status": "review",
-      "assignee": "Sofia Chen",
+      "assignee": "Teammate B",
       "due_date": "2026-10-27",
       "created_date": "2026-10-23",
       "context": spdd({
@@ -575,7 +631,7 @@ export default {
       "description": "Due dates stored as YYYY-MM-DD (MariaDB DATE) display one day earlier in the UI when parsed with `new Date(dateString)` due to UTC offset. Use date-only parsing (split on \"-\") instead of Date constructor to avoid timezone shifts.",
       "type": "bug",
       "status": "done",
-      "assignee": "Priya Nair",
+      "assignee": "Teammate C",
       "due_date": "2026-10-24",
       "created_date": "2026-10-22",
       "context": spdd({
@@ -602,7 +658,7 @@ export default {
       "description": "The DeliverablesPinnedBoard component was passing an inline callback as a dependency to a useEffect, causing an infinite fetch loop. Fix by using a ref to track the stable callback reference and only re-fetching when token or teamId actually changes.",
       "type": "bug",
       "status": "done",
-      "assignee": "James Obi",
+      "assignee": "Teammate C",
       "due_date": "2026-10-26",
       "created_date": "2026-10-25",
       "context": spdd({
@@ -629,7 +685,7 @@ export default {
       "description": "SECURITY: Some ad-hoc query strings in the invitation flow concatenate user-supplied email strings directly. Replace ALL string interpolation in SQL with parameterised queries using the mysql2 placeholder syntax (?). Review every pool.query() call.",
       "type": "urgent",
       "status": "in-progress",
-      "assignee": "Alex Reed",
+      "assignee": "Teammate A",
       "due_date": "2026-10-27",
       "created_date": "2026-10-25",
       "context": spdd({
@@ -655,7 +711,7 @@ export default {
       "description": "Developer-friendly UX improvement. Add a small \"keyboard shortcuts\" popover to the board header listing: Ctrl+S (save task), Esc (close editor), + (add task). Should auto-dismiss on outside click.",
       "type": "additional",
       "status": "todo",
-      "assignee": "Tom Walker",
+      "assignee": "Teammate B",
       "due_date": "2026-11-04",
       "created_date": "2026-10-27",
       "context": spdd({
@@ -680,7 +736,7 @@ export default {
       "description": "When a team has no tasks, show a helpful empty state with a call-to-action \"Add your first task\" button. Follow DESIGN.md §4: plain muted text plus a text link inside the ruled cell.",
       "type": "additional",
       "status": "todo",
-      "assignee": "Tom Walker",
+      "assignee": "Teammate B",
       "due_date": "2026-11-05",
       "created_date": "2026-10-27",
       "context": spdd({

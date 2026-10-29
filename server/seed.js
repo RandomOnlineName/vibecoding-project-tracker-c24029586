@@ -9,11 +9,9 @@
  *    development database.
  *
  * Demo credentials (all passwords = "password123"):
- *   alex.reed@vibetrack.dev     — Team Owner / Creator
- *   sofia.chen@vibetrack.dev
- *   james.obi@vibetrack.dev
- *   priya.nair@vibetrack.dev
- *   tom.walker@vibetrack.dev
+ *   teammate.a@vibetrack.dev    — Team Owner / Creator
+ *   teammate.b@vibetrack.dev
+ *   teammate.c@vibetrack.dev
  */
 
 import 'dotenv/config';
@@ -102,29 +100,20 @@ export async function seedDatabase(targetPool = pool, { delay = 0 } = {}) {
 
     const USERS = [
       {
-        id: uuid(), name: 'Alex Reed',    email: 'alex.reed@vibetrack.dev',
-        github_handle: 'alex-reed-dev',   vscode_profile: 'alex.reed',
+        id: uuid(), name: 'Teammate A',   email: 'teammate.a@vibetrack.dev',
+        github_handle: 'teammate-a',      vscode_profile: 'teammate.a',
         default_llm_tool: 'Claude',
       },
       {
-        id: uuid(), name: 'Sofia Chen',   email: 'sofia.chen@vibetrack.dev',
-        github_handle: 'sofiac-codes',    vscode_profile: 'sofia.chen',
+        id: uuid(), name: 'Teammate B',   email: 'teammate.b@vibetrack.dev',
+        github_handle: 'teammate-b',      vscode_profile: 'teammate.b',
         default_llm_tool: 'ChatGPT',
       },
       {
-        id: uuid(), name: 'James Obi',    email: 'james.obi@vibetrack.dev',
-        github_handle: 'james-obi-ui',    vscode_profile: 'james.obi',
+        // No GitHub handle, to show how assignees without one are displayed
+        id: uuid(), name: 'Teammate C',   email: 'teammate.c@vibetrack.dev',
+        github_handle: null,              vscode_profile: 'teammate.c',
         default_llm_tool: 'Cursor',
-      },
-      {
-        id: uuid(), name: 'Priya Nair',   email: 'priya.nair@vibetrack.dev',
-        github_handle: 'priyanair-dev',   vscode_profile: 'priya.nair',
-        default_llm_tool: 'Gemini',
-      },
-      {
-        id: uuid(), name: 'Tom Walker',   email: 'tom.walker@vibetrack.dev',
-        github_handle: 'tom-walker-ux',   vscode_profile: 'tom.walker',
-        default_llm_tool: 'Copilot',
       },
     ];
 
@@ -137,7 +126,7 @@ export async function seedDatabase(targetPool = pool, { delay = 0 } = {}) {
       log(`User: ${u.name} <${u.email}>`);
     }
 
-    const [alex, sofia, james, priya, tom] = USERS;
+    const [teammateA, teammateB, teammateC] = USERS;
 
     // ── 3. Create the demo team ──────────────────────────────────────────────
     divider('Step 3: Creating Demo Team');
@@ -149,18 +138,16 @@ export async function seedDatabase(targetPool = pool, { delay = 0 } = {}) {
         TEAM_ID,
         'UXD Hackathon 2026',
         'Vibecoding Project Tracker — UXD Hackathon team workspace. Building the agile task & prompt tracker in 3 hours.',
-        alex.id,
+        teammateA.id,
       ]
     );
     log(`Team created: UXD Hackathon 2026 (ID: ${TEAM_ID})`);
 
     // Add all users to the team
     const memberRoles = [
-      [alex.id,  'owner'],
-      [sofia.id, 'member'],
-      [james.id, 'member'],
-      [priya.id, 'member'],
-      [tom.id,   'member'],
+      [teammateA.id, 'owner'],
+      [teammateB.id, 'member'],
+      [teammateC.id, 'member'],
     ];
     for (const [userId, role] of memberRoles) {
       await conn.query(
@@ -168,7 +155,7 @@ export async function seedDatabase(targetPool = pool, { delay = 0 } = {}) {
         [TEAM_ID, userId, role]
       );
     }
-    log('All 5 team members joined.');
+    log('All 3 team members joined.');
 
     // ── 4. Create 22 demo tasks ──────────────────────────────────────────────
     divider('Step 4: Inserting 22 Demo Tasks');
@@ -178,7 +165,7 @@ export async function seedDatabase(targetPool = pool, { delay = 0 } = {}) {
       {
         id: sid('task'), title: 'Set up Vite + React + Tailwind scaffold',
         description: 'Initialise the project with Vite, configure React plugin, Tailwind v3 with PostCSS, and verify hot-reload works on localhost:5173. Commit as `git-linked`.',
-        type: 'feature', status: 'done', assignee: alex.name,
+        type: 'feature', status: 'done', assignee: teammateA.name,
         due_date: dateOffset(-10), created_date: dateOffset(-14),
         context: `// Vite config for React + Tailwind
 // vite.config.js
@@ -198,7 +185,7 @@ export default defineConfig({
       {
         id: sid('task'), title: 'Write and finalise PRD §1–§4',
         description: 'Review the pre-written PRD, fill in team-specific TODOs for sections 1–4. Verify data model fields (task fields, user/team fields, deliverable anchors). Tag as `prd-done`.',
-        type: 'feature', status: 'done', assignee: sofia.name,
+        type: 'feature', status: 'done', assignee: teammateB.name,
         due_date: dateOffset(-9), created_date: dateOffset(-14),
         context: `PRD §3.2 Task Fields:
 id, title, description, category, status (todo/in-progress/review/done),
@@ -212,7 +199,7 @@ presentation, demo, report, documentation, deployment`,
       {
         id: sid('task'), title: 'Design system: dark JetBrains/GitLab theme',
         description: 'Define full colour palette (surface hierarchy, brand tokens, type scale, significance scale), typography stack, component principles, and microcopy. Paste design tokens into tailwind.config.js. Tag as `design-done`.',
-        type: 'feature', status: 'done', assignee: james.name,
+        type: 'feature', status: 'done', assignee: teammateC.name,
         due_date: dateOffset(-8), created_date: dateOffset(-13),
         context: `Design reference: JetBrains IDE dark theme + GitLab Dark
 Surface hierarchy: #1e1f22 → #25272b → #2b2d30 → #323438
@@ -233,7 +220,7 @@ Generate the Tailwind config extend block with all the colour tokens from the pa
       {
         id: sid('task'), title: 'Build four-column Kanban board with mock data',
         description: 'Render the Kanban board with 4 STAGES (todo, in-progress, review, done). Add 3–4 mock tasks to verify column filtering. Implement STAGES constant and Task typedef. Tag as `data-model`.',
-        type: 'feature', status: 'done', assignee: alex.name,
+        type: 'feature', status: 'done', assignee: teammateA.name,
         due_date: dateOffset(-7), created_date: dateOffset(-12),
         context: `export const STAGES = [
   { id: 'todo', label: 'To Do', color: 'bg-slate-400' },
@@ -251,7 +238,7 @@ Write a React component KanbanColumn that takes a stage object and array of task
       {
         id: sid('task'), title: 'CRUD modal: add, edit and delete tasks',
         description: 'Implement the full task editor page (full-page, not modal). Persist tasks via POST/PUT/DELETE to the Express API. Keyboard shortcut: Ctrl+S to save, Esc to close. Tag as `crud-modal`.',
-        type: 'feature', status: 'done', assignee: priya.name,
+        type: 'feature', status: 'done', assignee: teammateC.name,
         due_date: dateOffset(-5), created_date: dateOffset(-10),
         context: `Task Editor Layout (lg:col-span-12):
   Left (col-span-8): Title input, Description textarea, LLM Context textarea
@@ -279,7 +266,7 @@ Add a delete confirmation zone to the task editor's sidebar that requires a two-
       {
         id: sid('task'), title: 'Feature vs bug visual distinction on cards',
         description: 'Cards must use the dual-scale colour system: type pill (feature=blue, bug=orange, urgent=red, additional=purple) as the top badge. Significance stripe at the card bottom. Tag as `tag-style`.',
-        type: 'feature', status: 'in-progress', assignee: james.name,
+        type: 'feature', status: 'in-progress', assignee: teammateC.name,
         due_date: dateOffset(0), created_date: dateOffset(-6),
         context: `// Scale 1: Task Type Pill (top of card)
 isBug = type === 'bug' || type === 'urgent'
@@ -297,7 +284,7 @@ Implement the dual-scale colour system for task cards in React + Tailwind. The t
       {
         id: sid('task'), title: 'Assignee badge and hand-off dropdown on cards',
         description: 'Each card shows a small avatar (initials) and the assignee name. Owner column in task editor should show all team members in a dropdown. Reassign via edit. Tag as `task-owner`.',
-        type: 'feature', status: 'in-progress', assignee: sofia.name,
+        type: 'feature', status: 'in-progress', assignee: teammateB.name,
         due_date: dateOffset(1), created_date: dateOffset(-5),
         context: `// Team members pulled from teamDetail.members[].name via useTeams hook
 // Assignee displayed in card footer:
@@ -314,7 +301,7 @@ Add an assignee avatar to each Kanban task card. The avatar should be a small ci
       {
         id: sid('task'), title: 'Due-date urgency tinting on task cards',
         description: 'Cards change bottom stripe colour as deadlines approach: rose (overdue/today), amber (≤5 days), sky (≤14 days), slate (later/no date). Done tasks always use neutral slate. Tag as `due-tint`.',
-        type: 'feature', status: 'in-progress', assignee: priya.name,
+        type: 'feature', status: 'in-progress', assignee: teammateC.name,
         due_date: dateOffset(2), created_date: dateOffset(-4),
         context: `// getTaskSignificance(task) function:
 const diffDays = Math.round((due - todayDate) / (1000 * 60 * 60 * 24));
@@ -333,7 +320,7 @@ Implement a deadline urgency calculation function getTaskSignificance(task) that
       {
         id: sid('task'), title: 'LLM Context Window field on task editor',
         description: 'Add a full-height monospace textarea with dark background (#121316) for storing prompt context, logs, and API documentation per task. Include a character counter and "Copy Context" clipboard button. Tag as `context`.',
-        type: 'feature', status: 'in-progress', assignee: alex.name,
+        type: 'feature', status: 'in-progress', assignee: teammateA.name,
         due_date: dateOffset(1), created_date: dateOffset(-3),
         context: `// Context textarea styling
 className="bg-[#121316] font-mono text-xs text-[#a9b7c6] border border-border-subtle
@@ -359,7 +346,7 @@ Now add a Prompt History Box below the LLM Context Window. This is a separate fi
       {
         id: sid('task'), title: 'JWT authentication — login, register, logout',
         description: 'Full JWT auth flow: POST /api/auth/register, POST /api/auth/login, GET /api/auth/me. Token stored in localStorage. Route guard redirects unauthenticated users to login page. Password hashed with bcrypt (12 rounds).',
-        type: 'feature', status: 'review', assignee: alex.name,
+        type: 'feature', status: 'review', assignee: teammateA.name,
         due_date: dateOffset(-2), created_date: dateOffset(-8),
         context: `// JWT middleware
 function requireAuth(req, res, next) {
@@ -387,7 +374,7 @@ Add a profile update endpoint PUT /auth/me that allows updating name, github_han
       {
         id: sid('task'), title: 'Teams API: create, join, and list teams',
         description: 'Implement multi-team scoping. Users can create teams (becoming owner), invite members by email (with shareable invite tokens), and switch active team. Tasks are filtered by activeTeamId.',
-        type: 'feature', status: 'review', assignee: sofia.name,
+        type: 'feature', status: 'review', assignee: teammateB.name,
         due_date: dateOffset(-1), created_date: dateOffset(-7),
         context: `// Team endpoints:
 GET  /api/teams        - List teams user belongs to (with role)
@@ -412,7 +399,7 @@ Add an invitation system. When inviting by email: if the user already has an acc
       {
         id: sid('task'), title: 'One-click "Copy as Prompt Context" with rich formatting',
         description: 'The hero feature. Clicking "Copy as Prompt Context" should format the full task briefing — title, description, context, tool target, assignee, due date — into a structured markdown block ready to paste into any LLM chat interface. Tag as `copy-prompt`.',
-        type: 'feature', status: 'todo', assignee: sofia.name,
+        type: 'feature', status: 'todo', assignee: teammateB.name,
         due_date: dateOffset(3), created_date: dateOffset(-3),
         context: `// Formatted prompt output template:
 ---
@@ -437,7 +424,7 @@ Add an invitation system. When inviting by email: if the user already has an acc
       {
         id: sid('task'), title: 'Project Deliverables & Milestones anchor board',
         description: 'Pin a collapsible Deliverables Board above the Kanban board. Shows 5 deliverable anchors (presentation, demo, report, documentation, deployment). Only team owner can set/update URLs. Members can open links. Tag as `project-deliverables`.',
-        type: 'feature', status: 'todo', assignee: james.name,
+        type: 'feature', status: 'todo', assignee: teammateC.name,
         due_date: dateOffset(4), created_date: dateOffset(-2),
         context: `// team_deliverables table (team_id, id, label, url, status, updated_at)
 // Deliverable IDs: presentation | demo | report | documentation | deployment
@@ -457,7 +444,7 @@ Add an invitation system. When inviting by email: if the user already has an acc
       {
         id: sid('task'), title: 'Connect Vercel deployment for live demo',
         description: 'Deploy frontend to Vercel free tier. Import GitHub fork, accept auto-detected Vite config, deploy. Add the resulting URL to the Deployment deliverable anchor. Test that the backend API (separate deploy or local tunnel) resolves correctly.',
-        type: 'feature', status: 'todo', assignee: priya.name,
+        type: 'feature', status: 'todo', assignee: teammateC.name,
         due_date: dateOffset(5), created_date: dateOffset(-1),
         context: `// Vercel deployment steps:
 // 1. vercel.com → Import from GitHub
@@ -475,7 +462,7 @@ Add an invitation system. When inviting by email: if the user already has an acc
       {
         id: sid('task'), title: 'Secret sauce: AI prompt template generator',
         description: 'The standout differentiator for M12. Add a one-click "Generate Prompt" button that auto-builds a structured system prompt from the task\'s title, description, and context. Pre-selects a prompt template based on task type (feature → user story prompt, bug → debug prompt, etc.).',
-        type: 'additional', status: 'todo', assignee: tom.name,
+        type: 'additional', status: 'todo', assignee: teammateB.name,
         due_date: dateOffset(6), created_date: dateOffset(-1),
         context: `// Prompt templates by task type:
 
@@ -493,13 +480,13 @@ Add an invitation system. When inviting by email: if the user already has an acc
       {
         id: sid('task'), title: 'Load pitch-ready demo dataset for presentation',
         description: 'Populate the tracker with a realistic dataset that tells a coherent story during the pitch: mix of completed features, in-progress work, bugs being fixed, and upcoming deliverables. Run the seed script: `npm run db:seed`. Tag as `pitch-ready`.',
-        type: 'additional', status: 'todo', assignee: alex.name,
+        type: 'additional', status: 'todo', assignee: teammateA.name,
         due_date: dateOffset(7), created_date: today(),
         context: `// npm run db:seed
 // node server/seed.js
 
 // Demo team: UXD Hackathon 2026
-// 5 users: Alex Reed (owner), Sofia Chen, James Obi, Priya Nair, Tom Walker
+// 3 users: Teammate A (owner), Teammate B, Teammate C
 // 22 tasks spread across all 4 stages
 // 5 deliverable anchors (2 completed, 1 in-progress, 2 not started)
 // All passwords: password123`,
@@ -511,7 +498,7 @@ Add an invitation system. When inviting by email: if the user already has an acc
       {
         id: sid('task'), title: 'Fix: MariaDB ENUM error on task type validation',
         description: 'Server throws "ER_TRUNCATED_WRONG_VALUE_FOR_FIELD" when submitting tasks without an explicit type field. The parseTask function must default type to "feature" and validate against the TYPES constant before INSERT.',
-        type: 'bug', status: 'done', assignee: alex.name,
+        type: 'bug', status: 'done', assignee: teammateA.name,
         due_date: dateOffset(-6), created_date: dateOffset(-9),
         context: `// Error observed:
 // ER_TRUNCATED_WRONG_VALUE_FOR_FIELD: Incorrect enum value: '' for column 'type'
@@ -529,7 +516,7 @@ I'm getting a MariaDB ENUM error when inserting tasks: "ER_TRUNCATED_WRONG_VALUE
       {
         id: sid('task'), title: 'Fix: localStorage active team persists after logout',
         description: 'After logout, if a user registers with a new account, the stale activeTeamId from localStorage causes a 403 "not a member of this team" error on all task requests. Clear vt_active_team on logout.',
-        type: 'bug', status: 'review', assignee: sofia.name,
+        type: 'bug', status: 'review', assignee: teammateB.name,
         due_date: dateOffset(0), created_date: dateOffset(-4),
         context: `// Bug reproduction:
 // 1. Login as User A → team auto-selected → stored in localStorage
@@ -552,7 +539,7 @@ I have a React app with JWT auth stored in localStorage. After logout and re-log
       {
         id: sid('task'), title: 'Fix: Date timezone offset shifts task due dates by -1 day',
         description: 'Due dates stored as YYYY-MM-DD (MariaDB DATE) display one day earlier in the UI when parsed with `new Date(dateString)` due to UTC offset. Use date-only parsing (split on "-") instead of Date constructor to avoid timezone shifts.',
-        type: 'bug', status: 'done', assignee: priya.name,
+        type: 'bug', status: 'done', assignee: teammateC.name,
         due_date: dateOffset(-3), created_date: dateOffset(-5),
         context: `// Bug: new Date('2026-10-25') → parsed as UTC midnight → displayed as Oct 24 in GMT+1
 
@@ -570,7 +557,7 @@ I'm storing dates as 'YYYY-MM-DD' strings in a MariaDB DATE column and reading t
       {
         id: sid('task'), title: 'Fix: Deliverables board re-fetches on every render',
         description: 'The DeliverablesPinnedBoard component was passing an inline callback as a dependency to a useEffect, causing an infinite fetch loop. Fix by using a ref to track the stable callback reference and only re-fetching when token or teamId actually changes.',
-        type: 'bug', status: 'done', assignee: james.name,
+        type: 'bug', status: 'done', assignee: teammateC.name,
         due_date: dateOffset(-1), created_date: dateOffset(-2),
         context: `// Bug: useEffect with onStatsChange in deps causes re-render loop
 // Every fetch updates state → parent re-renders → new function ref → triggers fetch again
@@ -591,7 +578,7 @@ I have a React useEffect that calls a callback prop (onStatsChange) after fetchi
       {
         id: sid('task'), title: 'Urgent: SQL injection risk in dynamic team queries',
         description: 'SECURITY: Some ad-hoc query strings in the invitation flow concatenate user-supplied email strings directly. Replace ALL string interpolation in SQL with parameterised queries using the mysql2 placeholder syntax (?). Review every pool.query() call.',
-        type: 'urgent', status: 'in-progress', assignee: alex.name,
+        type: 'urgent', status: 'in-progress', assignee: teammateA.name,
         due_date: dateOffset(0), created_date: dateOffset(-2),
         context: `// ⚠ Vulnerable pattern (DO NOT USE):
 await pool.query(\`SELECT id FROM users WHERE email = '\${email}'\`);
@@ -612,7 +599,7 @@ Audit the following Express.js server routes for SQL injection vulnerabilities. 
       {
         id: sid('task'), title: 'UX: Add keyboard shortcut legend to board header',
         description: 'Developer-friendly UX improvement. Add a small "keyboard shortcuts" popover to the board header listing: Ctrl+S (save task), Esc (close editor), + (add task). Should auto-dismiss on outside click.',
-        type: 'additional', status: 'todo', assignee: tom.name,
+        type: 'additional', status: 'todo', assignee: teammateB.name,
         due_date: dateOffset(8), created_date: today(),
         context: `// Shortcuts already implemented:
 // Ctrl+S → handleSave() in TaskEditorPage
@@ -628,7 +615,7 @@ Audit the following Express.js server routes for SQL injection vulnerabilities. 
       {
         id: sid('task'), title: 'UX: Empty state illustration for new teams',
         description: 'When a team has no tasks, show a helpful empty state: a subtle dashed border area with an icon and a call-to-action "Add your first task" button. Follow DESIGN.md §4 empty state principle: dashed border + muted caption.',
-        type: 'additional', status: 'todo', assignee: tom.name,
+        type: 'additional', status: 'todo', assignee: teammateB.name,
         due_date: dateOffset(9), created_date: today(),
         context: `// DESIGN.md §4 empty state principle:
 // "Subtle dashed outline with muted caption"
@@ -651,7 +638,7 @@ Audit the following Express.js server routes for SQL injection vulnerabilities. 
            due_date, created_date, context, context_tool, context_updated_at, prompt_history)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          t.id, TEAM_ID, alex.id,
+          t.id, TEAM_ID, teammateA.id,
           t.title, t.description, t.type, t.status, t.assignee,
           t.due_date, t.created_date,
           t.context || '',
@@ -724,7 +711,7 @@ Audit the following Express.js server routes for SQL injection vulnerabilities. 
     console.log(`${CYAN}Demo Credentials (password: password123)${RESET}`);
     console.log(`${'─'.repeat(48)}`);
     for (const u of USERS) {
-      const role = u.id === alex.id ? 'Owner  ' : 'Member ';
+      const role = u.id === teammateA.id ? 'Owner  ' : 'Member ';
       console.log(`  ${role}  ${u.email.padEnd(32)} ${DIM}(${u.default_llm_tool})${RESET}`);
     }
     console.log(`\n${YELLOW}  Login at: http://localhost:5173/#/login${RESET}\n`);

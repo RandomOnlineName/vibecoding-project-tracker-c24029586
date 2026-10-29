@@ -6,7 +6,7 @@ import { useState } from 'react';
 import Wordmark from '../components/Wordmark.jsx';
 
 // Seeded team creator account for demos (see services/seedData.js)
-const DEMO_EMAIL    = 'alex.reed@vibetrack.dev';
+const DEMO_EMAIL    = 'teammate.a@vibetrack.dev';
 const DEMO_PASSWORD = 'password123';
 
 export default function LoginPage({ onLogin, onGoRegister }) {
@@ -100,7 +100,7 @@ export default function LoginPage({ onLogin, onGoRegister }) {
             <dt className="text-text-muted">Password</dt>
             <dd className="font-mono text-text-primary">{DEMO_PASSWORD}</dd>
           </dl>
-          <p className="text-text-muted text-[11px] mt-2">Alex Reed · creator of the UXD Hackathon 2026 team</p>
+          <p className="text-text-muted text-[11px] mt-2">Teammate A · creator of the UXD Hackathon 2026 team</p>
         </aside>
 
         <p className="text-text-muted text-sm mt-4">

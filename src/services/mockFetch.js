@@ -4,7 +4,7 @@
  * No external server or database needed!
  */
 
-import seedData, { SEED_VERSION } from './seedData.js';
+import seedData, { SEED_VERSION, LEGACY_ASSIGNEES, RETIRED_USER_IDS, TASKS_ADDED_IN } from './seedData.js';
 
 const STORAGE_KEYS = {
   USERS: 'vt_users',
@@ -43,18 +43,21 @@ export function initLocalStorage(force = false) {
 
   // A browser with no users stored has never run the demo before
   const isFirstVisit = !localStorage.getItem(STORAGE_KEYS.USERS);
+  const seedChanged = localStorage.getItem(STORAGE_KEYS.SEED_VERSION) !== String(SEED_VERSION);
 
   if (force || !localStorage.getItem(STORAGE_KEYS.TASKS)) {
     setStorage(STORAGE_KEYS.TASKS, seedData.tasks);
-  } else if (localStorage.getItem(STORAGE_KEYS.SEED_VERSION) !== String(SEED_VERSION)) {
+  } else if (seedChanged) {
     // Seed content changed: refresh the text of seeded tasks, keeping user-made tasks
-    // and each task's board state (status, assignee, due date)
+    // and each task's board state (status, due date). Assignees from the old demo users
+    // are mapped onto their replacements.
     const seedById = new Map(seedData.tasks.map(t => [t.id, t]));
     const tasks = getStorage(STORAGE_KEYS.TASKS, []).map(t => {
+      const migrated = LEGACY_ASSIGNEES[t.assignee] ? { ...t, assignee: LEGACY_ASSIGNEES[t.assignee] } : t;
       const seed = seedById.get(t.id);
-      if (!seed) return t;
+      if (!seed) return migrated;
       return {
-        ...t,
+        ...migrated,
         title: seed.title,
         description: seed.description,
         context: seed.context,
@@ -62,7 +65,24 @@ export function initLocalStorage(force = false) {
         contextUpdatedAt: null,
       };
     });
-    setStorage(STORAGE_KEYS.TASKS, tasks);
+    // Add seed tasks introduced since this browser's seed version (newest first, like created tasks)
+    const storedVersion = Number(localStorage.getItem(STORAGE_KEYS.SEED_VERSION)) || 0;
+    const existingIds = new Set(tasks.map(t => t.id));
+    const added = seedData.tasks.filter(t =>
+      TASKS_ADDED_IN[t.id] > storedVersion && !existingIds.has(t.id)
+    );
+    setStorage(STORAGE_KEYS.TASKS, [...added, ...tasks]);
+  }
+
+  if (!force && !isFirstVisit && seedChanged) {
+    // Replace the seeded demo accounts (matched by id) and drop retired ones; registered users are kept
+    const seedUserById = new Map(seedData.users.map(u => [u.id, u]));
+    const users = getStorage(STORAGE_KEYS.USERS, [])
+      .filter(u => !RETIRED_USER_IDS.includes(u.id))
+      .map(u => (seedUserById.has(u.id) ? { ...seedUserById.get(u.id) } : u));
+    setStorage(STORAGE_KEYS.USERS, users);
+    const members = getStorage(STORAGE_KEYS.TEAM_MEMBERS, []).filter(m => !RETIRED_USER_IDS.includes(m.user_id));
+    setStorage(STORAGE_KEYS.TEAM_MEMBERS, members);
   }
   localStorage.setItem(STORAGE_KEYS.SEED_VERSION, String(SEED_VERSION));
   if (force || !localStorage.getItem(STORAGE_KEYS.USERS)) {
@@ -103,7 +123,7 @@ export function initLocalStorage(force = false) {
     localStorage.setItem(STORAGE_KEYS.ACTIVE_TEAM, seedData.team.id);
   }
 
-  // Auto-login Alex Reed on first visit only, so logging out sticks across reloads
+  // Auto-login Teammate A (the team creator) on first visit only, so logging out sticks across reloads
   if ((force || isFirstVisit) && !localStorage.getItem(STORAGE_KEYS.TOKEN)) {
     localStorage.setItem(STORAGE_KEYS.TOKEN, `mock-token-${seedData.users[0].id}`);
   }
