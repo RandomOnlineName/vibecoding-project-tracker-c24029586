@@ -1359,8 +1359,8 @@ export default function App() {
     }
     return (
       <LoginPage
-        onLogin={async (email, password) => {
-          await login(email, password);
+        onLogin={async (email) => {
+          await login(email);
           goAfterAuth();
         }}
         onGoRegister={() => {

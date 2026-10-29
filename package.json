@@ -14,7 +14,6 @@
     "db:test": "node server/test-db.js"
   },
   "dependencies": {
-    "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
     "dompurify": "^3.1.6",
     "dotenv": "^16.4.5",

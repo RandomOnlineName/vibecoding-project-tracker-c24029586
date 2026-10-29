@@ -1,6 +1,6 @@
 /**
  * ProfilePage — view and edit user profile details.
- * Fields: name, email (read-only), githubHandle, vsCodeProfile, defaultLlmTool, password change.
+ * Fields: name, email (read-only), githubHandle, vsCodeProfile, defaultLlmTool. (Demo app: no passwords.)
  */
 import { useState, useEffect } from 'react';
 
@@ -13,15 +13,10 @@ export default function ProfilePage({ user, onUpdate, onBack }) {
     vsCodeProfile:  user?.vsCodeProfile  ?? '',
     defaultLlmTool: user?.defaultLlmTool ?? '',
   });
-  const [pwForm, setPwForm] = useState({ currentPassword: '', password: '', confirm: '' });
 
   const [profileMsg, setProfileMsg] = useState('');
   const [profileErr, setProfileErr] = useState('');
   const [profileBusy, setProfileBusy] = useState(false);
-
-  const [pwMsg, setPwMsg] = useState('');
-  const [pwErr, setPwErr] = useState('');
-  const [pwBusy, setPwBusy] = useState(false);
 
   // Sync if user object changes
   useEffect(() => {
@@ -35,7 +30,6 @@ export default function ProfilePage({ user, onUpdate, onBack }) {
   }, [user]);
 
   function setF(k) { return e => setForm(p => ({ ...p, [k]: e.target.value })); }
-  function setPw(k) { return e => setPwForm(p => ({ ...p, [k]: e.target.value })); }
 
   async function saveProfile(e) {
     e.preventDefault();
@@ -48,22 +42,6 @@ export default function ProfilePage({ user, onUpdate, onBack }) {
       setProfileErr(err.message);
     } finally {
       setProfileBusy(false);
-    }
-  }
-
-  async function changePassword(e) {
-    e.preventDefault();
-    setPwMsg(''); setPwErr('');
-    if (pwForm.password !== pwForm.confirm) { setPwErr('Passwords do not match'); return; }
-    setPwBusy(true);
-    try {
-      await onUpdate({ currentPassword: pwForm.currentPassword, password: pwForm.password });
-      setPwMsg('Password changed.');
-      setPwForm({ currentPassword: '', password: '', confirm: '' });
-    } catch (err) {
-      setPwErr(err.message);
-    } finally {
-      setPwBusy(false);
     }
   }
 
@@ -141,34 +119,6 @@ export default function ProfilePage({ user, onUpdate, onBack }) {
 
               <button type="submit" disabled={profileBusy} className="btn-primary py-2 px-5 text-sm">
                 {profileBusy ? 'Saving…' : 'Save Profile'}
-              </button>
-            </form>
-          </div>
-        </section>
-
-        {/* ── Password section ── */}
-        <section aria-labelledby="password-heading" className={sectionCls}>
-          <h2 id="password-heading" className={sectionHeadCls}>Change Password</h2>
-
-          <div className="p-5">
-            {pwMsg && <p role="status" className="text-status-success text-sm mb-3">{pwMsg}</p>}
-            {pwErr && <p role="alert" className="text-type-urgent text-sm mb-3">{pwErr}</p>}
-
-            <form onSubmit={changePassword} className="space-y-4">
-              <div>
-                <label htmlFor="pw-current" className="field-label">Current Password</label>
-                <input id="pw-current" type="password" autoComplete="current-password" value={pwForm.currentPassword} onChange={setPw('currentPassword')} required className="field" placeholder="••••••••" />
-              </div>
-              <div>
-                <label htmlFor="pw-new" className="field-label">New Password</label>
-                <input id="pw-new" type="password" autoComplete="new-password" value={pwForm.password} onChange={setPw('password')} required className="field" placeholder="Min. 8 characters" />
-              </div>
-              <div>
-                <label htmlFor="pw-confirm" className="field-label">Confirm New Password</label>
-                <input id="pw-confirm" type="password" autoComplete="new-password" value={pwForm.confirm} onChange={setPw('confirm')} required className="field" placeholder="••••••••" />
-              </div>
-              <button type="submit" disabled={pwBusy} className="btn-secondary py-2 px-5 text-sm">
-                {pwBusy ? 'Changing…' : 'Change Password'}
               </button>
             </form>
           </div>

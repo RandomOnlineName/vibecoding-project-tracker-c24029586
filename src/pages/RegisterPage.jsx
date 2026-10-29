@@ -11,8 +11,6 @@ export default function RegisterPage({ onRegister, onGoLogin }) {
   const [form, setForm] = useState({
     name:           '',
     email:          '',
-    password:       '',
-    confirm:        '',
     githubHandle:   '',
     vsCodeProfile:  '',
     defaultLlmTool: '',
@@ -27,16 +25,11 @@ export default function RegisterPage({ onRegister, onGoLogin }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
-    if (form.password !== form.confirm) {
-      setError('Passwords do not match');
-      return;
-    }
     setBusy(true);
     try {
       await onRegister({
         name:           form.name.trim(),
         email:          form.email.trim(),
-        password:       form.password,
         githubHandle:   form.githubHandle.trim() || undefined,
         vsCodeProfile:  form.vsCodeProfile.trim() || undefined,
         defaultLlmTool: form.defaultLlmTool || undefined,
@@ -91,9 +84,8 @@ export default function RegisterPage({ onRegister, onGoLogin }) {
               <div className="space-y-3">
                 {field('Full Name', 'name', 'text', 'Your name', 'name')}
                 {field('Email', 'email', 'email', 'you@example.com', 'email')}
-                {field('Password', 'password', 'password', 'Min. 8 characters', 'new-password')}
-                {field('Confirm Password', 'confirm', 'password', '••••••••', 'new-password')}
               </div>
+              <p className="text-text-muted text-xs mt-2">Demo app: no password is needed. You'll sign in with this email.</p>
             </fieldset>
 
             {/* ── Profile fields ── */}

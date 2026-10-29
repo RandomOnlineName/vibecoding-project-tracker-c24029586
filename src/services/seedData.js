@@ -556,7 +556,7 @@ export default {
       "due_date": "2026-11-03",
       "created_date": "2026-10-27",
       "context": spdd({
-        files: ['src/services/seedData.js (browser demo)', 'server/seed.js (npm run db:seed)', 'All demo passwords: password123'],
+        files: ['src/services/seedData.js (browser demo)', 'server/seed.js (npm run db:seed)', 'No passwords: sign in with any demo email'],
         problem: 'The demo board needs to tell a believable story in under a minute.',
         done: 'Every column has tasks; each task context shows Resources + a filled REASONS canvas; deliverables show mixed progress.',
         entities: ['3 users (Teammate A owner, Teammate B, Teammate C)', '24 tasks across 4 stages', '5 deliverable anchors'],

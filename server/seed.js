@@ -8,7 +8,7 @@
  *    and replaces it with a realistic demo dataset. Run it only against a
  *    development database.
  *
- * Demo credentials (all passwords = "password123"):
+ * Demo accounts (no passwords; sign in with the email alone):
  *   teammate.a@vibetrack.dev    — Team Owner / Creator
  *   teammate.b@vibetrack.dev
  *   teammate.c@vibetrack.dev
@@ -16,7 +16,6 @@
 
 import 'dotenv/config';
 import mysql from 'mysql2/promise';
-import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -96,7 +95,6 @@ export async function seedDatabase(targetPool = pool, { delay = 0 } = {}) {
 
     // ── 2. Create demo users ─────────────────────────────────────────────────
     divider('Step 2: Creating Demo Users');
-    const passwordHash = await bcrypt.hash('password123', 10);
 
     const USERS = [
       {
@@ -119,9 +117,9 @@ export async function seedDatabase(targetPool = pool, { delay = 0 } = {}) {
 
     for (const u of USERS) {
       await conn.query(
-        `INSERT INTO users (id, name, email, password_hash, github_handle, vscode_profile, default_llm_tool)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [u.id, u.name, u.email, passwordHash, u.github_handle, u.vscode_profile, u.default_llm_tool]
+        `INSERT INTO users (id, name, email, github_handle, vscode_profile, default_llm_tool)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [u.id, u.name, u.email, u.github_handle, u.vscode_profile, u.default_llm_tool]
       );
       log(`User: ${u.name} <${u.email}>`);
     }
@@ -489,7 +487,7 @@ Add an invitation system. When inviting by email: if the user already has an acc
 // 3 users: Teammate A (owner), Teammate B, Teammate C
 // 22 tasks spread across all 4 stages
 // 5 deliverable anchors (2 completed, 1 in-progress, 2 not started)
-// All passwords: password123`,
+// No passwords: sign in with any demo email`,
         context_tool: 'Claude',
         prompt_history: null,
       },
@@ -708,7 +706,7 @@ Audit the following Express.js server routes for SQL injection vulnerabilities. 
     console.log(`  Tasks:   ${TASKS.length} tasks (done/in-progress/review/todo)`);
     console.log(`  Users:   ${USERS.length} members\n`);
 
-    console.log(`${CYAN}Demo Credentials (password: password123)${RESET}`);
+    console.log(`${CYAN}Demo Accounts (no password: sign in with the email)${RESET}`);
     console.log(`${'─'.repeat(48)}`);
     for (const u of USERS) {
       const role = u.id === teammateA.id ? 'Owner  ' : 'Member ';

@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS users (
   id              VARCHAR(36)  NOT NULL PRIMARY KEY,
   name            VARCHAR(100) NOT NULL,
   email           VARCHAR(255) NOT NULL UNIQUE,
-  password_hash   VARCHAR(255) NOT NULL,
   github_handle   VARCHAR(100) NULL,
   vscode_profile  VARCHAR(100) NULL,
   default_llm_tool VARCHAR(32) NULL,

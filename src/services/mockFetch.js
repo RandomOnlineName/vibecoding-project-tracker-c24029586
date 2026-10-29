@@ -257,13 +257,24 @@ async function handleLocalApi(path, method, body, headers) {
     }
   }
 
-  // 3. Auth: Login
+  // 3a. Auth: Accounts that can sign in (demo only: listed on the login page)
+  if (pathname === '/api/auth/accounts' && method === 'GET') {
+    const users = getStorage(STORAGE_KEYS.USERS, []);
+    const teams = getStorage(STORAGE_KEYS.TEAMS, []);
+    return jsonResponse(users.map(u => ({
+      name: u.name,
+      email: u.email,
+      role: teams.some(t => t.created_by === u.id) ? 'owner' : 'member',
+    })));
+  }
+
+  // 3. Auth: Login (demo: email only, no passwords)
   if (pathname === '/api/auth/login' && method === 'POST') {
-    const { email, password } = body || {};
+    const { email } = body || {};
     const users = getStorage(STORAGE_KEYS.USERS, []);
     const user = users.find(u => u.email?.toLowerCase() === email?.toLowerCase());
     if (!user) {
-      return jsonResponse({ error: 'Invalid email or password' }, 401);
+      return jsonResponse({ error: 'No account with that email' }, 401);
     }
     const token = `mock-token-${user.id}`;
     return jsonResponse({ token, user: toClientUser(user) });

@@ -73,7 +73,7 @@
 
 ## 5. Extra Features (unsorted)
 
-* **Accounts:** Email/password registration and sign-in; profile page for editing details and changing password; seeded demo account with a "Use demo account" shortcut on the login page.
+* **Accounts:** Email-only registration and sign-in (demo app, no passwords); profile page for editing details; the login page lists every account that can sign in, each with a one-click "Sign in" button.
 * **Teams:** Create teams; invite members by email (existing users are added directly, others get a shareable invite link); accept-invite page.
 * **Owner (team creator) permissions:** Only the team creator can reassign any task; other members see assignees read-only.
 * **Shared deliverables editing:** Any team member can edit deliverable links, labels and status.

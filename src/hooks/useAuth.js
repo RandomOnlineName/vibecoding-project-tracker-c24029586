@@ -38,11 +38,12 @@ export function useAuth() {
     setUser(u);
   }, []);
 
-  const login = useCallback(async (email, password) => {
+  // Demo app: sign in by email alone (no passwords)
+  const login = useCallback(async (email) => {
     const r = await fetch(`${API}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email }),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Login failed');

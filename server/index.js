@@ -4,7 +4,6 @@ import mysql from 'mysql2/promise';
 import { seedDatabase } from './seed.js';
 import { sqlitePool } from './sqlite-db.js';
 import { SQLITE_SCHEMA } from './schema.sqlite.js';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -305,25 +304,23 @@ app.get('/api/health', wrap(async (_req, res) => {
 // ─── Auth: Register ───────────────────────────────────────────────────────────
 
 app.post('/api/auth/register', wrap(async (req, res) => {
-  const { name, email, password, githubHandle, vsCodeProfile, defaultLlmTool } = req.body || {};
+  // Demo app: accounts have no passwords; an email identifies the user
+  const { name, email, githubHandle, vsCodeProfile, defaultLlmTool } = req.body || {};
 
   if (!name || typeof name !== 'string' || !name.trim())
     return res.status(400).json({ error: 'name is required' });
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return res.status(400).json({ error: 'valid email is required' });
-  if (!password || password.length < 8)
-    return res.status(400).json({ error: 'password must be at least 8 characters' });
 
   const [[existing]] = await pool.query('SELECT id FROM users WHERE email = ?', [email.toLowerCase()]);
   if (existing) return res.status(409).json({ error: 'an account with this email already exists' });
 
-  const passwordHash = await bcrypt.hash(password, 12);
   const id = uuid();
 
   await pool.query(
-    `INSERT INTO users (id, name, email, password_hash, github_handle, vscode_profile, default_llm_tool)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [id, name.trim(), email.toLowerCase(), passwordHash,
+    `INSERT INTO users (id, name, email, github_handle, vscode_profile, default_llm_tool)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [id, name.trim(), email.toLowerCase(),
      githubHandle || null, vsCodeProfile || null, defaultLlmTool || null]
   );
 
@@ -343,17 +340,26 @@ app.post('/api/auth/register', wrap(async (req, res) => {
   res.status(201).json({ token, user: rowToUser(row) });
 }));
 
+// ─── Auth: Accounts (demo: every account that can sign in, for the login page) ──
+
+app.get('/api/auth/accounts', wrap(async (_req, res) => {
+  const [rows] = await pool.query(
+    `SELECT u.name, u.email,
+            EXISTS(SELECT 1 FROM teams t WHERE t.created_by = u.id) AS is_owner
+     FROM users u ORDER BY u.created_at, u.name`
+  );
+  res.json(rows.map(r => ({ name: r.name, email: r.email, role: r.is_owner ? 'owner' : 'member' })));
+}));
+
 // ─── Auth: Login ──────────────────────────────────────────────────────────────
 
 app.post('/api/auth/login', wrap(async (req, res) => {
-  const { email, password } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
+  // Demo app: sign in by email alone (no passwords)
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'email is required' });
 
-  const [[row]] = await pool.query('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
-  if (!row) return res.status(401).json({ error: 'invalid email or password' });
-
-  const valid = await bcrypt.compare(password, row.password_hash);
-  if (!valid) return res.status(401).json({ error: 'invalid email or password' });
+  const [[row]] = await pool.query('SELECT * FROM users WHERE email = ?', [String(email).toLowerCase()]);
+  if (!row) return res.status(401).json({ error: 'no account with that email' });
 
   const token = jwt.sign({ id: row.id, email: row.email }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
   res.json({ token, user: rowToUser(row) });
@@ -368,23 +374,13 @@ app.get('/api/auth/me', requireAuth, wrap(async (req, res) => {
 }));
 
 app.put('/api/auth/me', requireAuth, wrap(async (req, res) => {
-  const { name, githubHandle, vsCodeProfile, defaultLlmTool, password, currentPassword } = req.body || {};
+  const { name, githubHandle, vsCodeProfile, defaultLlmTool } = req.body || {};
   const updates = {};
 
   if (name !== undefined) updates.name = String(name).trim().slice(0, 100);
   if (githubHandle !== undefined)   updates.github_handle   = githubHandle   || null;
   if (vsCodeProfile !== undefined)  updates.vscode_profile  = vsCodeProfile  || null;
   if (defaultLlmTool !== undefined) updates.default_llm_tool = defaultLlmTool || null;
-
-  // Password change: requires current password
-  if (password) {
-    if (!currentPassword) return res.status(400).json({ error: 'currentPassword is required to change password' });
-    const [[row]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.user.id]);
-    const valid = await bcrypt.compare(currentPassword, row.password_hash);
-    if (!valid) return res.status(401).json({ error: 'current password is incorrect' });
-    if (password.length < 8) return res.status(400).json({ error: 'new password must be at least 8 characters' });
-    updates.password_hash = await bcrypt.hash(password, 12);
-  }
 
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'no fields to update' });
 
