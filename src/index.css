@@ -81,6 +81,28 @@
     @apply text-brand-accent underline underline-offset-2 hover:text-white;
   }
 
+  /* Rendered markdown (task editor preview) */
+  .md-preview {
+    @apply text-sm leading-relaxed text-text-primary;
+  }
+  .md-preview > div > * + * { @apply mt-3; }
+  .md-preview h1 { @apply text-lg font-bold; }
+  .md-preview h2 { @apply text-base font-bold pb-1 border-b border-border-subtle; }
+  .md-preview h3 { @apply text-sm font-bold; }
+  .md-preview h4, .md-preview h5, .md-preview h6 { @apply text-xs font-bold uppercase tracking-wider text-text-muted; }
+  .md-preview a { @apply link; }
+  .md-preview strong { @apply font-semibold; }
+  .md-preview ul { @apply list-disc pl-5 space-y-1; }
+  .md-preview ol { @apply list-decimal pl-5 space-y-1; }
+  .md-preview blockquote { @apply border-l-4 border-border-strong pl-3 text-text-muted; }
+  .md-preview hr { @apply border-border-subtle; }
+  .md-preview code { @apply font-mono text-xs bg-surface-card border border-border-subtle px-1 py-px; }
+  .md-preview pre { @apply font-mono text-xs bg-surface-page border border-border-subtle p-3 overflow-x-auto; }
+  .md-preview pre code { @apply bg-transparent border-0 p-0; }
+  .md-preview table { @apply w-full text-xs border-collapse; }
+  .md-preview th, .md-preview td { @apply border border-border-subtle px-2 py-1 text-left; }
+  .md-preview th { @apply bg-surface-column font-semibold; }
+
   .skip-link {
     @apply sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:bg-brand-primary focus:px-3 focus:py-2 focus:text-sm focus:text-white;
   }

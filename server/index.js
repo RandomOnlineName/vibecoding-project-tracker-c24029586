@@ -645,7 +645,7 @@ app.get('/api/teams/:id/deliverables', requireAuth, wrap(async (req, res) => {
 
   res.json({
     role,
-    canEdit: role === 'owner',
+    canEdit: true,
     deliverables: rows.map(r => ({
       id: r.id,
       label: r.label,
@@ -656,14 +656,10 @@ app.get('/api/teams/:id/deliverables', requireAuth, wrap(async (req, res) => {
   });
 }));
 
-// Update a team deliverable (Only the creator / owner of the development team can update)
+// Update a team deliverable (any team member can update)
 app.put('/api/teams/:id/deliverables/:deliverableId', requireAuth, wrap(async (req, res) => {
   const role = await requireTeamMember(req, res, req.params.id);
   if (!role) return;
-
-  if (role !== 'owner') {
-    return res.status(403).json({ error: 'Only the creator of the development team can store or update deliverables.' });
-  }
 
   const { url, status, label } = req.body || {};
   const validStatuses = ['not-started', 'in-progress', 'completed'];

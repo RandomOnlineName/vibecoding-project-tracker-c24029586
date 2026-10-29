@@ -75,11 +75,18 @@
 
 * **Accounts:** Email/password registration and sign-in; profile page for editing details and changing password; seeded demo account with a "Use demo account" shortcut on the login page.
 * **Teams:** Create teams; invite members by email (existing users are added directly, others get a shareable invite link); accept-invite page.
-* **Owner (team creator) permissions:** Only the team creator can reassign tasks and edit deliverables; other members see them read-only.
-* **Quick reassign / handoff:** Reassign dropdown on each task row, with a handoff confirmation toast.
+* **Owner (team creator) permissions:** Only the team creator can reassign any task; other members see assignees read-only.
+* **Shared deliverables editing:** Any team member can edit deliverable links, labels and status.
+* **Self handoff:** Members who aren't the team creator can reassign tasks currently assigned to them (in the task editor); the server enforces the same rule. A hint under the editor's Assignee field shows when the user can do this.
+* **Handoff:** Reassigning is done from the task editor's Assignee field (not from the board), with a handoff confirmation toast.
+* **GitHub handles on assignees:** Wherever an assignee is shown or picked (task rows, editor Assignee dropdown, handoff toast), the member's GitHub handle appears in brackets, e.g. "Sofia Chen (@sofiac-codes)"; members without a handle show just their name.
 * **Extra task categories:** `urgent` and `additional` alongside `feature` and `bug`.
 * **Prompt history log:** Separate `promptHistory` field per task, with "Quick Append" for timestamped, tool-tagged entries and "Copy All Prompts".
 * **Editor views:** Full-page task editor with stacked / context-only / history-only views; keyboard shortcuts (Ctrl+S save, Esc back).
+* **Markdown preview:** Write / Split / Preview toggle on the AI Context Window and Prompt History Box, rendering sanitised markdown (headings, lists, code blocks, tables, links). Split shows the editor and a live preview side by side inside the box (stacked on narrow screens).
+* **Full-width task editor:** The task edit screen uses the full window width, with a fixed-width Properties sidebar and the editor column taking the rest.
+* **Structured context (SPDD):** AI Context Window uses a template with a Resources section (logs, stack trace, relevant files & docs) and a REASONS canvas (Requirements, Entities, Approach, Structure, Operations, Norms, Safeguards) for Structured Prompt-Driven Development. New tasks start with it, "Insert SPDD Template" adds it to existing tasks, and empty sections are pruned when copying or saving.
+* **Copy as Prompt Context:** Separate button that copies task metadata, problem description and context as one model-ready prompt; "Copy Context" copies the context alone.
 * **Board filtering & sorting:** "My Tasks" filter; sort by deadline or created date; live task count; urgency legend.
 * **Deliverables board extras:** Collapsible pinned board with linked/completed counts and progress bar; copy/open link buttons.
 * **Storage / deployment:** Client-side localStorage backend (mock API) for the deployed demo; optional SQLite/MariaDB server and Vercel deployment.

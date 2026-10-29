@@ -4,7 +4,7 @@
  * No external server or database needed!
  */
 
-import seedData from './seedData.js';
+import seedData, { SEED_VERSION } from './seedData.js';
 
 const STORAGE_KEYS = {
   USERS: 'vt_users',
@@ -16,6 +16,7 @@ const STORAGE_KEYS = {
   TOKEN: 'vt_token',
   ACTIVE_TEAM: 'vt_active_team',
   ANCHORS: 'vt_anchors',
+  SEED_VERSION: 'vt_seed_version',
 };
 
 // ── Initial Seed Data ─────────────────────────────────────────────────────────
@@ -45,7 +46,25 @@ export function initLocalStorage(force = false) {
 
   if (force || !localStorage.getItem(STORAGE_KEYS.TASKS)) {
     setStorage(STORAGE_KEYS.TASKS, seedData.tasks);
+  } else if (localStorage.getItem(STORAGE_KEYS.SEED_VERSION) !== String(SEED_VERSION)) {
+    // Seed content changed: refresh the text of seeded tasks, keeping user-made tasks
+    // and each task's board state (status, assignee, due date)
+    const seedById = new Map(seedData.tasks.map(t => [t.id, t]));
+    const tasks = getStorage(STORAGE_KEYS.TASKS, []).map(t => {
+      const seed = seedById.get(t.id);
+      if (!seed) return t;
+      return {
+        ...t,
+        title: seed.title,
+        description: seed.description,
+        context: seed.context,
+        context_updated_at: null,
+        contextUpdatedAt: null,
+      };
+    });
+    setStorage(STORAGE_KEYS.TASKS, tasks);
   }
+  localStorage.setItem(STORAGE_KEYS.SEED_VERSION, String(SEED_VERSION));
   if (force || !localStorage.getItem(STORAGE_KEYS.USERS)) {
     setStorage(STORAGE_KEYS.USERS, seedData.users);
   }
@@ -130,6 +149,32 @@ function getUserFromToken(headers) {
   return users.find(u => u.id === userId) || null;
 }
 
+// Profile fields are stored snake_case (like the SQL schema) but the client speaks camelCase,
+// matching server/index.js. Accept either on write and return both on read.
+const PROFILE_FIELDS = [
+  ['github_handle', 'githubHandle'],
+  ['vscode_profile', 'vsCodeProfile'],
+  ['default_llm_tool', 'defaultLlmTool'],
+];
+
+function toStoredProfile(fields = {}) {
+  const out = { ...fields };
+  for (const [snake, camel] of PROFILE_FIELDS) {
+    if (camel in out) {
+      out[snake] = out[camel] || null;
+      delete out[camel];
+    }
+  }
+  return out;
+}
+
+function toClientUser(u) {
+  if (!u) return u;
+  const out = { ...u };
+  for (const [snake, camel] of PROFILE_FIELDS) out[camel] = u[camel] ?? u[snake] ?? null;
+  return out;
+}
+
 function isTeamMember(user, teamId) {
   if (!user) return false;
   const teams = getStorage(STORAGE_KEYS.TEAMS, []);
@@ -176,15 +221,17 @@ async function handleLocalApi(path, method, body, headers) {
     if (!user) return jsonResponse({ error: 'unauthorized' }, 401);
 
     if (method === 'GET') {
-      return jsonResponse(user);
+      return jsonResponse(toClientUser(user));
     }
     if (method === 'PUT') {
       const users = getStorage(STORAGE_KEYS.USERS, []);
       const idx = users.findIndex(u => u.id === user.id);
       if (idx !== -1) {
-        users[idx] = { ...users[idx], ...body, id: user.id, email: user.email };
+        // Drop any camelCase copies left by older versions so the snake_case value is the only one
+        const stored = toStoredProfile({ ...users[idx], ...body, id: user.id, email: user.email });
+        users[idx] = stored;
         setStorage(STORAGE_KEYS.USERS, users);
-        return jsonResponse(users[idx]);
+        return jsonResponse(toClientUser(users[idx]));
       }
       return jsonResponse({ error: 'user not found' }, 404);
     }
@@ -199,12 +246,12 @@ async function handleLocalApi(path, method, body, headers) {
       return jsonResponse({ error: 'Invalid email or password' }, 401);
     }
     const token = `mock-token-${user.id}`;
-    return jsonResponse({ token, user });
+    return jsonResponse({ token, user: toClientUser(user) });
   }
 
   // 4. Auth: Register
   if (pathname === '/api/auth/register' && method === 'POST') {
-    const { name, email, github_handle, vscode_profile, default_llm_tool } = body || {};
+    const { name, email, github_handle, vscode_profile, default_llm_tool } = toStoredProfile(body || {});
     if (!email || !name) {
       return jsonResponse({ error: 'Name and email are required' }, 400);
     }
@@ -238,7 +285,7 @@ async function handleLocalApi(path, method, body, headers) {
     }
 
     const token = `mock-token-${newUser.id}`;
-    return jsonResponse({ token, user: newUser }, 201);
+    return jsonResponse({ token, user: toClientUser(newUser) }, 201);
   }
 
   // 5. Teams: List
@@ -303,16 +350,17 @@ async function handleLocalApi(path, method, body, headers) {
     const users = getStorage(STORAGE_KEYS.USERS, []);
     const teamMems = allMembers.filter(m => m.team_id === teamId);
     const members = teamMems.map(m => {
-      const u = users.find(usr => usr.id === m.user_id);
+      const u = toClientUser(users.find(usr => usr.id === m.user_id));
       return {
         id: m.user_id,
         role: m.role,
         joined_at: m.joined_at,
         name: u?.name || 'Unknown',
         email: u?.email || '',
-        github_handle: u?.github_handle || null,
-        vscode_profile: u?.vscode_profile || null,
-        default_llm_tool: u?.default_llm_tool || null,
+        github_handle: u?.githubHandle || null,
+        githubHandle: u?.githubHandle || null,
+        vscode_profile: u?.vsCodeProfile || null,
+        default_llm_tool: u?.defaultLlmTool || null,
       };
     });
 
@@ -404,7 +452,7 @@ async function handleLocalApi(path, method, body, headers) {
       deliverables = defaultDeliverables(teamId);
       setStorage(STORAGE_KEYS.DELIVERABLES, [...all, ...deliverables]);
     }
-    return jsonResponse({ deliverables, canEdit: isTeamOwner(user, teamId) });
+    return jsonResponse({ deliverables, canEdit: true });
   }
 
   // 11. Deliverables: Update
@@ -412,8 +460,8 @@ async function handleLocalApi(path, method, body, headers) {
   if (delivUpdateMatch && method === 'PUT') {
     const teamId = delivUpdateMatch[1];
     const deliverableId = delivUpdateMatch[2];
-    if (!isTeamOwner(getUserFromToken(headers), teamId)) {
-      return jsonResponse({ error: 'Only the team creator can update deliverables' }, 403);
+    if (!isTeamMember(getUserFromToken(headers), teamId)) {
+      return jsonResponse({ error: 'You are not a member of this team' }, 403);
     }
     const all = getStorage(STORAGE_KEYS.DELIVERABLES, []);
     const idx = all.findIndex(d => (d.team_id === teamId || !d.team_id) && d.id === deliverableId);
@@ -465,11 +513,15 @@ async function handleLocalApi(path, method, body, headers) {
     const tasks = getStorage(STORAGE_KEYS.TASKS, []);
     const idx = tasks.findIndex(t => t.id === taskId);
     if (idx !== -1) {
-      // Only the team creator (owner) may reassign a task
+      // Only the team creator (owner) or the current assignee may reassign a task
       const existing = tasks[idx];
       if (body && 'assignee' in body && (body.assignee || '') !== (existing.assignee || '')) {
         const teamId = existing.team_id || existing.teamId;
-        if (!isTeamOwner(getUserFromToken(headers), teamId)) return jsonResponse({ error: 'Only the team creator can reassign tasks' }, 403);
+        const user = getUserFromToken(headers);
+        const isAssignee = Boolean(user?.name && existing.assignee === user.name);
+        if (!isAssignee && !isTeamOwner(user, teamId)) {
+          return jsonResponse({ error: 'Only the team creator or the current assignee can reassign this task' }, 403);
+        }
       }
       // Normalise first so the incoming camelCase fields override stale snake_case ones
       tasks[idx] = normalizeTask({ ...normalizeTask(existing), ...body, id: taskId });

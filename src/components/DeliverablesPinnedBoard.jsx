@@ -51,7 +51,6 @@ export default function DeliverablesPinnedBoard({
   token,
   teamId,
   teamName,
-  isCreator: isCreatorProp,
   isOpen,
   onToggle,
   onStatsChange,
@@ -120,8 +119,8 @@ export default function DeliverablesPinnedBoard({
     };
   }, [token, teamId]);
 
-  // Owner-only: the API decides, and the UI must agree the user created the team
-  const canEdit = canEditServer && isCreatorProp;
+  // Any team member can edit; the API decides
+  const canEdit = canEditServer;
 
   const startEdit = (d) => {
     setEditingId(d.id);
@@ -265,10 +264,8 @@ export default function DeliverablesPinnedBoard({
             <h2 id="deliverables-heading" className="text-xs font-bold uppercase tracking-wider text-text-primary">
               Project Deliverables & Milestones (PRD §3.3)
             </h2>
-            {canEdit ? (
-              <span className="tag text-brand-accent border-brand-accent/70">Team Creator Mode</span>
-            ) : (
-              <span className="tag text-text-muted border-border-strong">Read-Only · Managed by Creator</span>
+            {!canEdit && (
+              <span className="tag text-text-muted border-border-strong">Read-Only</span>
             )}
           </div>
           <p className="text-[11px] text-text-muted mt-0.5">
@@ -424,7 +421,7 @@ export default function DeliverablesPinnedBoard({
                   )}
                 </div>
 
-                {/* Footer Edit Affordance (Only for Team Creator) */}
+                {/* Footer Edit Affordance (any team member) */}
                 {!isEditing && (
                   <div className="flex items-center justify-between pt-2 mt-2 border-t border-border-subtle text-[11px]">
                     <span className="text-[10px] font-mono text-text-muted uppercase">

@@ -140,7 +140,7 @@ Shared classes live in `src/index.css` under `@layer components`.
 |---|---|
 | **Board** | `grid gap-3` of square columns (1 / 2 / 4 per row). A small gutter separates the columns; inside each one, tasks stay as ruled rows. |
 | **Column** | `<section aria-labelledby>`, square `border border-border-subtle`. Header row: `h-10 bg-surface-column border-b border-border-strong` with an `h2`, a count, and an icon button that has an `aria-label`. |
-| **Task row** | `<li>` › `<article>`, **no border box and no radius**. `pl-4 pr-3 py-3`, `divide-y` between rows, `hover:bg-surface-elevated`. The title is a `<button>` stretched over the row with `after:absolute after:inset-0`, and inline controls (reassign `<select>`) sit above it on `z-10`. |
+| **Task row** | `<li>` › `<article>`, **no border box and no radius**. `pl-4 pr-3 py-3`, `divide-y` between rows, `hover:bg-surface-elevated`. The title is a `<button>` stretched over the row with `after:absolute after:inset-0`. Rows hold no other controls: the assignee is read-only text, and reassigning happens in the task editor. If an inline control is ever added, it must sit above the stretched button on `z-10`. |
 | **Tags / indicators** | `.tag`: `rounded-full`, 1px border, 11px uppercase, with a round status dot. Used for type, due date and deliverable status. Progress bars and dots are also `rounded-full`. |
 | **Buttons** | `.btn-primary` (solid brand fill), `.btn-secondary` (outlined), `.btn-ghost`, `.btn-danger`. All `rounded-md`, no shadows. |
 | **Inputs** | `.field`: square, `bg-surface-card border-border-strong`, accent border + 2px outline on focus. Every input has a `<label htmlFor>`. |
@@ -184,12 +184,13 @@ Target: **WCAG 2.2 AA** across the app.
 |---|---|
 | "+" button label | `+ Add Task` |
 | Empty column placeholder | `No tasks in this stage yet` |
-| Toast after "Copy as Prompt Context" | `Prompt context copied to clipboard` |
+| Toast after "Copy as Prompt Context" (task + description + context) | `Prompt context copied to clipboard` |
+| Toast after "Copy Context" (context only) | `Context copied to clipboard` |
 | Confirm-delete message | `Deleting this task will PERMANENTLY delete all context and history` |
 | Handoff toast (M7 `task-owner`) | `Handed off to {name}. Make sure they have necessary context.` |
 | Account action | `Sign out` |
 
-No emoji in UI chrome. Use text tags instead (e.g. `Team Creator Mode`, `Read-Only · Managed by Creator`).
+No emoji in UI chrome. Use text tags instead (e.g. `Read-Only`).
 
 ---
 

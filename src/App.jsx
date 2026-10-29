@@ -8,6 +8,8 @@ import ProfilePage from './pages/ProfilePage.jsx';
 
 import DeliverablesPinnedBoard from './components/DeliverablesPinnedBoard.jsx';
 import Wordmark from './components/Wordmark.jsx';
+import MarkdownPreview, { EditorModeToggle } from './components/MarkdownPreview.jsx';
+import { CONTEXT_TEMPLATE, cleanContext, isContextEmpty, buildModelPrompt } from './services/promptFormat.js';
 
 /**
  * Vibecoding Project Tracker
@@ -195,13 +197,30 @@ export function useTasks(token, activeTeamId) {
 }
 
 /**
+ * Display name with the member's GitHub handle in brackets, e.g. "Sofia Chen (@sofiac-codes)".
+ * `handles` maps member name → handle; members without a handle show just the name.
+ */
+function withGithub(name, handles = {}) {
+  if (!name) return name;
+  const handle = String(handles[name] || '').trim().replace(/^@/, '');
+  return handle ? `${name} (@${handle})` : name;
+}
+
+/** Character count with an explicit "chars" suffix so it isn't read as a word count. */
+function formatChars(n, { compact = false } = {}) {
+  if (compact && n > 999) return `${(n / 1000).toFixed(n < 10000 ? 1 : 0)}k chars`;
+  return `${n.toLocaleString()} chars`;
+}
+
+/**
  * Task row with Dual-Scale Color Coding (DESIGN.md §2.4):
  *   - Type Scale: rounded tag, top-left
  *   - Significance Scale: left edge rule + due-date tag
- * The title button is stretched over the row so the whole row is clickable,
- * while the reassign <select> sits above it and stays independently focusable.
+ * The title button is stretched over the row so the whole row is clickable.
+ * Assignees are read-only here; handoffs happen in the task editor.
  */
-export function TaskCard({ task, onClick, teamMembers = [], canReassign = false, onReassign }) {
+export function TaskCard({ task, onClick, assigneeHandles = {} }) {
+  const assigneeLabel = withGithub(task.assignee, assigneeHandles) || 'Unassigned';
   const significance = getTaskSignificance(task);
 
   return (
@@ -249,28 +268,7 @@ export function TaskCard({ task, onClick, teamMembers = [], canReassign = false,
             <span aria-hidden="true" className="w-5 h-5 shrink-0 bg-surface-card border border-border-strong flex items-center justify-center text-[10px] font-semibold text-text-primary uppercase">
               {(task.assignee || 'Unassigned').slice(0, 2)}
             </span>
-            {canReassign ? (
-              <select
-                value={task.assignee || ''}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => onReassign && onReassign(task, e.target.value)}
-                title="Hand off to..."
-                aria-label={`Reassign "${task.title}"`}
-                className="relative z-10 max-w-[120px] truncate bg-transparent hover:bg-surface-card border border-transparent hover:border-border-strong px-1 py-0.5 text-[11px] text-text-muted hover:text-text-primary focus:border-brand-accent cursor-pointer transition-colors"
-              >
-                <option value="">Unassigned</option>
-                {task.assignee && !teamMembers.includes(task.assignee) && (
-                  <option value={task.assignee}>{task.assignee}</option>
-                )}
-                {teamMembers.map((member) => (
-                  <option key={member} value={member}>
-                    {member}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span className="truncate max-w-[120px]">{task.assignee || 'Unassigned'}</span>
-            )}
+            <span className="truncate max-w-[180px]" title={assigneeLabel}>{assigneeLabel}</span>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -293,7 +291,7 @@ export function TaskCard({ task, onClick, teamMembers = [], canReassign = false,
                     d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
                   />
                 </svg>
-                {task.contextTool || 'Context'} ({task.context.length > 999 ? `${Math.round(task.context.length / 1024)}k` : task.context.length})
+                {task.contextTool || 'Context'} ({formatChars(task.context.length, { compact: true })})
               </span>
             )}
 
@@ -305,7 +303,7 @@ export function TaskCard({ task, onClick, teamMembers = [], canReassign = false,
                 <svg aria-hidden="true" className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Prompts ({task.promptHistory.length > 999 ? `${Math.round(task.promptHistory.length / 1024)}k` : task.promptHistory.length})
+                Prompts ({formatChars(task.promptHistory.length, { compact: true })})
               </span>
             )}
           </div>
@@ -318,7 +316,7 @@ export function TaskCard({ task, onClick, teamMembers = [], canReassign = false,
 /**
  * Kanban Column: one cell of the board table. Header row on top, tasks as ruled rows.
  */
-export function KanbanColumn({ stage, tasks, onTaskClick, onAddTask, teamMembers, canReassign, onReassign }) {
+export function KanbanColumn({ stage, tasks, onTaskClick, onAddTask, assigneeHandles }) {
   const stageTasks = tasks.filter((t) => t.status === stage.id);
   const headingId = `stage-${stage.id}`;
 
@@ -352,9 +350,7 @@ export function KanbanColumn({ stage, tasks, onTaskClick, onAddTask, teamMembers
               <TaskCard
                 task={task}
                 onClick={() => onTaskClick && onTaskClick(task)}
-                teamMembers={teamMembers}
-                canReassign={canReassign}
-                onReassign={onReassign}
+                assigneeHandles={assigneeHandles}
               />
             </li>
           ))}
@@ -378,7 +374,28 @@ export function KanbanColumn({ stage, tasks, onTaskClick, onAddTask, teamMembers
 /**
  * Full-Page Task Editor Component
  */
-export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack, onSave, onDelete }) {
+/**
+ * Markdown preview beside (split) or instead of (preview) an editor textarea.
+ * In split on wide screens the pane is pinned to the grid cell, so it tracks the
+ * textarea's (resizable) height and scrolls; on narrow screens it stacks below.
+ */
+function PreviewPane({ id, label, source, split, sizeClass }) {
+  if (!split) {
+    return <MarkdownPreview id={id} label={label} source={source} className={sizeClass} />;
+  }
+  return (
+    <div className="relative">
+      <MarkdownPreview
+        id={id}
+        label={label}
+        source={source}
+        className={`${sizeClass} lg:absolute lg:inset-0 lg:min-h-0 lg:max-h-none`}
+      />
+    </div>
+  );
+}
+
+export function TaskEditorPage({ task, teamMembers, assigneeHandles = {}, canReassign = false, onBack, onSave, onDelete }) {
   const isEditing = Boolean(task?.id);
 
   const [form, setForm] = useState({
@@ -399,9 +416,12 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
   const [saveError, setSaveError] = useState('');
   const [copyToast, setCopyToast] = useState(false);
   const [copyHistoryToast, setCopyHistoryToast] = useState(false);
+  const [copyPromptToast, setCopyPromptToast] = useState(false);
   const [quickPromptText, setQuickPromptText] = useState('');
   const [quickPromptTool, setQuickPromptTool] = useState(task?.contextTool || 'Claude');
   const [showQuickPromptBox, setShowQuickPromptBox] = useState(false);
+  const [contextMode, setContextMode] = useState('write'); // 'write' | 'split' | 'preview'
+  const [historyMode, setHistoryMode] = useState('write');
 
   const currentSignificance = getTaskSignificance({
     dueDate: form.dueDate,
@@ -425,15 +445,18 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
   const handleSave = async () => {
     if (!form.title.trim() || saving) return;
 
-    const contextChanged = form.context !== (task?.context || '');
+    // An untouched template is stored as no context at all
+    const context = isContextEmpty(form.context) ? '' : form.context;
+    const contextChanged = context !== (task?.context || '');
     setSaving(true);
     setSaveError('');
     try {
       await onSave({
         ...form,
+        context,
         title: form.title.trim(),
         dueDate: form.dueDate || null,
-        contextUpdatedAt: !form.context
+        contextUpdatedAt: !context
           ? null
           : contextChanged ? new Date().toISOString() : (task?.contextUpdatedAt || null),
         promptHistory: form.promptHistory || '',
@@ -445,16 +468,38 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
     }
   };
 
+  // Copies the resources + REASONS canvas, minus unfilled template sections
   const handleCopyContext = async () => {
-    if (!form.context) return;
+    if (isContextEmpty(form.context)) return;
     try {
-      await navigator.clipboard.writeText(form.context);
+      await navigator.clipboard.writeText(cleanContext(form.context));
       setCopyToast(true);
       setTimeout(() => setCopyToast(false), 2500);
     } catch {
       /* fallback */
     }
   };
+
+  // Copies title, problem description and context as one model-ready prompt
+  const handleCopyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(buildModelPrompt(form));
+      setCopyPromptToast(true);
+      setTimeout(() => setCopyPromptToast(false), 2500);
+    } catch {
+      /* fallback */
+    }
+  };
+
+  const handleInsertTemplate = () => {
+    setForm(prev => ({
+      ...prev,
+      context: prev.context.trim() ? `${prev.context.trimEnd()}\n\n${CONTEXT_TEMPLATE}` : CONTEXT_TEMPLATE,
+    }));
+    if (contextMode === 'preview') setContextMode('write');
+  };
+
+  const hasTemplate = /^## Resources\b/m.test(form.context) && /REASONS/.test(form.context);
 
   const handleCopyPromptHistory = async () => {
     if (!form.promptHistory) return;
@@ -524,6 +569,17 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
               {saveError}
             </span>
           )}
+          <button
+            type="button"
+            onClick={handleCopyPrompt}
+            className="btn-secondary"
+            title="Copy the task, problem description and context, formatted to paste into a model"
+          >
+            <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+            </svg>
+            <span aria-live="polite">{copyPromptToast ? 'Prompt context copied to clipboard' : 'Copy as Prompt Context'}</span>
+          </button>
           <button type="button" onClick={onBack} className="btn-secondary">
             Cancel
           </button>
@@ -540,10 +596,11 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
       </header>
 
       {/* Editor Main Content */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Main Editing Area (Col span 8) */}
-          <div className="lg:col-span-8 space-y-6">
+      {/* Full-width page: the editor column takes all the room beside a fixed-width Properties sidebar */}
+      <main className="flex-1 w-full px-4 sm:px-6 py-6 lg:py-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          {/* Main Editing Area (flexible column) */}
+          <div className="space-y-6">
             {/* Title Input */}
             <div>
               <label htmlFor="task-title" className="field-label">
@@ -567,7 +624,7 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
               <label htmlFor="task-description" className="field-label flex items-center gap-2">
                 <span>Description & Test Specs</span>
                 <span className="text-[11px] font-normal normal-case tracking-normal font-mono">
-                  ({form.description.length} chars)
+                  ({formatChars(form.description.length)})
                 </span>
               </label>
               <textarea
@@ -603,7 +660,7 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
                     <span>{tab.label}</span>
                     {tab.count > 0 && (
                       <span className="text-[10px] font-mono text-text-muted">
-                        ({tab.count > 999 ? `${Math.round(tab.count / 1024)}k` : tab.count})
+                        ({formatChars(tab.count, { compact: true })})
                       </span>
                     )}
                   </button>
@@ -632,12 +689,29 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
                       <span>AI Context Window (Briefing & Knowledge)</span>
                     </label>
                     <span className="tag font-mono normal-case tracking-normal font-medium text-text-muted border-border-strong">
-                      {form.context.length.toLocaleString()} chars
+                      {formatChars(form.context.length)}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {form.context && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <EditorModeToggle
+                      label="AI context"
+                      controls="task-context-preview"
+                      mode={contextMode}
+                      onChange={setContextMode}
+                    />
+                    {!hasTemplate && (
+                      <button
+                        type="button"
+                        onClick={handleInsertTemplate}
+                        className="btn-secondary"
+                        title="Add Resources and REASONS canvas (SPDD) sections"
+                      >
+                        <span aria-hidden="true">+</span>
+                        <span>Insert SPDD Template</span>
+                      </button>
+                    )}
+                    {!isContextEmpty(form.context) && (
                       <button
                         type="button"
                         onClick={handleCopyContext}
@@ -651,25 +725,35 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
                             d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
                           />
                         </svg>
-                        <span aria-live="polite">{copyToast ? 'Prompt context copied to clipboard' : 'Copy Context'}</span>
+                        <span aria-live="polite">{copyToast ? 'Context copied to clipboard' : 'Copy Context'}</span>
                       </button>
                     )}
                   </div>
                 </div>
 
-                <div className="relative">
+                <div className={contextMode === 'split' ? 'grid grid-cols-1 lg:grid-cols-2 gap-3' : 'relative'}>
                   <textarea
                     id="task-context"
+                    hidden={contextMode === 'preview'}
                     aria-describedby="task-context-hint"
                     rows={activeTab === 'both' ? 10 : 18}
-                    placeholder={`Paste background system context, architectural notes, API schemas, or error stacktraces here...\n\nExample:\n// Context for AI assistant:\nFix the SQL connection pooling issue in server/index.js.\nStacktrace:\nError: ER_ACCESS_DENIED_ERROR: Access denied for user 'vibetracker'@'localhost'`}
+                    placeholder={`Paste resources for the agent (logs, stack traces, files, docs) and the REASONS canvas instructions here.\n\nUse "Insert SPDD Template" for the standard structure:\n## Resources → Logs · Stack trace · Relevant files & docs\n## REASONS Canvas → Requirements · Entities · Approach · Structure · Operations · Norms · Safeguards`}
                     value={form.context}
                     onChange={(e) => setForm({ ...form, context: e.target.value })}
                     className="field bg-surface-code font-mono text-xs text-[#c9d4e0] p-4 leading-relaxed resize-y selection:bg-brand-primary selection:text-white"
                   />
+                  {contextMode !== 'write' && (
+                    <PreviewPane
+                      id="task-context-preview"
+                      label="AI context"
+                      source={form.context}
+                      split={contextMode === 'split'}
+                      sizeClass={activeTab === 'both' ? 'min-h-[13rem] max-h-[32rem]' : 'min-h-[24rem] max-h-[48rem]'}
+                    />
+                  )}
                 </div>
                 <p id="task-context-hint" className="text-[11px] text-text-muted leading-relaxed">
-                  Context briefing buffer. Persisted in MariaDB MEDIUMTEXT for AI prompt generation and task handoffs.
+                  Resources plus Structured Prompt-Driven Development (REASONS canvas) instructions. Empty template sections are left out when copying. "Copy as Prompt Context" bundles this with the problem description.
                 </p>
               </section>
             )}
@@ -691,7 +775,7 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
                       <span>Prompt History Box (Prompts Used)</span>
                     </label>
                     <span className="tag font-mono normal-case tracking-normal font-medium text-text-muted border-border-strong">
-                      {form.promptHistory.length.toLocaleString()} chars
+                      {formatChars(form.promptHistory.length)}
                     </span>
                     {form.promptHistory && (
                       <span className="text-[11px] font-mono text-text-muted">
@@ -700,7 +784,13 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <EditorModeToggle
+                      label="Prompt history"
+                      controls="task-history-preview"
+                      mode={historyMode}
+                      onChange={setHistoryMode}
+                    />
                     <button
                       type="button"
                       aria-expanded={showQuickPromptBox}
@@ -785,9 +875,10 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
                 )}
 
                 {/* Direct Prompt History Box Textarea */}
-                <div className="relative">
+                <div className={historyMode === 'split' ? 'grid grid-cols-1 lg:grid-cols-2 gap-3' : 'relative'}>
                   <textarea
                     id="task-history"
+                    hidden={historyMode === 'preview'}
                     aria-describedby="task-history-hint"
                     rows={activeTab === 'both' ? 12 : 20}
                     placeholder={`Paste the prompts you used into this prompt history box while working on the problem...\n\nExample:\n### [2026-10-26 14:15] Claude 3.5 Sonnet\nWrite an Express route to fetch all team members and their roles.\n\n---\n\n### [2026-10-26 14:32] Cursor\nRefactor the query to include joined_at date and order by role.\n\n---\n\n### [2026-10-26 15:05] ChatGPT\nHelp write the SQL migration to add prompt_history mediumtext to the tasks table.`}
@@ -795,6 +886,15 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
                     onChange={(e) => setForm({ ...form, promptHistory: e.target.value })}
                     className="field bg-surface-code font-mono text-xs text-[#d4dcf5] p-4 leading-relaxed resize-y selection:bg-purple-600 selection:text-white"
                   />
+                  {historyMode !== 'write' && (
+                    <PreviewPane
+                      id="task-history-preview"
+                      label="Prompt history"
+                      source={form.promptHistory}
+                      split={historyMode === 'split'}
+                      sizeClass={activeTab === 'both' ? 'min-h-[15rem] max-h-[36rem]' : 'min-h-[26rem] max-h-[52rem]'}
+                    />
+                  )}
                 </div>
                 <p id="task-history-hint" className="text-[11px] text-text-muted leading-relaxed">
                   Prompt history log. Type or paste your exact prompts here as you iterate on the problem. Persisted in MariaDB MEDIUMTEXT to build your team audit log and Module 5 Vibe Coding History deliverable.
@@ -804,7 +904,7 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
           </div>
 
           {/* Properties Sidebar (Col span 4) */}
-          <aside aria-labelledby="task-properties-heading" className="lg:col-span-4">
+          <aside aria-labelledby="task-properties-heading">
             <div className="lg:sticky lg:top-16 bg-surface-column border-t-2 border-t-brand-accent border-x border-b border-border-subtle divide-y divide-border-subtle">
               <h2 id="task-properties-heading" className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-text-primary">
                 Task Properties
@@ -865,29 +965,40 @@ export function TaskEditorPage({ task, teamMembers, canReassign = false, onBack,
                   Assignee
                 </label>
                 {canReassign ? (
+                  <>
                   <select
                     id="task-assignee"
+                    aria-describedby="task-assignee-hint"
                     value={form.assignee}
                     onChange={(e) => setForm({ ...form, assignee: e.target.value })}
                     className="field text-xs cursor-pointer"
                   >
                     <option value="">Unassigned</option>
                     {form.assignee && !teamMembers.includes(form.assignee) && (
-                      <option value={form.assignee}>{form.assignee}</option>
+                      <option value={form.assignee}>{withGithub(form.assignee, assigneeHandles)}</option>
                     )}
                     {teamMembers.map((member) => (
                       <option key={member} value={member}>
-                        {member}
+                        {withGithub(member, assigneeHandles)}
                       </option>
                     ))}
                   </select>
+                  <p id="task-assignee-hint" className="mt-1 flex items-center gap-1 text-[11px] text-brand-accent">
+                    <svg aria-hidden="true" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                    {task?.id
+                      ? 'You can hand this task off to another teammate.'
+                      : 'Choose which teammate this task goes to.'}
+                  </p>
+                  </>
                 ) : (
                   <>
                     <p className="field text-xs border-border-subtle">
-                      {form.assignee || 'Unassigned'}
+                      {withGithub(form.assignee, assigneeHandles) || 'Unassigned'}
                     </p>
                     <p className="mt-1 text-[11px] text-text-muted">
-                      Only the team creator can reassign tasks.
+                      Only the team creator or the current assignee can reassign this task.
                     </p>
                   </>
                 )}
@@ -1241,20 +1352,17 @@ export default function App() {
   }
 
   const teamMembersList = teamDetail?.members?.map(m => m.name) || [user?.name || 'Alex'];
+  // Member name → GitHub handle, for "Name (@handle)" labels wherever an assignee is shown
+  const assigneeHandles = {
+    ...(user?.name ? { [user.name]: user.githubHandle || user.github_handle } : {}),
+    ...Object.fromEntries((teamDetail?.members || []).map(m => [m.name, m.githubHandle || m.github_handle])),
+  };
   // Only the team creator picks who new tasks go to; everyone else creates tasks for themselves
   const defaultAssignee = isTeamCreator ? (teamMembersList[0] || user?.name || '') : (user?.name || '');
 
-  const handleReassign = async (task, newAssignee) => {
-    if (!isTeamCreator || (task.assignee || '') === newAssignee) return;
-    try {
-      await updateTask(task.id, { assignee: newAssignee });
-      showHandoffToast(newAssignee
-        ? `Handed off to ${newAssignee}. Make sure they have necessary context.`
-        : `"${task.title}" is now unassigned.`);
-    } catch (e) {
-      showHandoffToast(e.message);
-    }
-  };
+  // The team creator can reassign any task; other members can hand off tasks assigned to them
+  const canReassignTask = (task) =>
+    isTeamCreator || Boolean(task?.id && user?.name && task.assignee === user.name);
 
   // Filter & Sort tasks
   const displayedTasks = tasks
@@ -1299,13 +1407,14 @@ export default function App() {
       <TaskEditorPage
         task={activeEditorTask}
         teamMembers={teamMembersList}
-        canReassign={isTeamCreator}
+        assigneeHandles={assigneeHandles}
+        canReassign={canReassignTask(activeEditorTask)}
         onBack={() => setActiveEditorTask(null)}
         onSave={async (formData) => {
           if (activeEditorTask?.id) {
             await updateTask(activeEditorTask.id, formData);
             if (formData.assignee && formData.assignee !== (activeEditorTask.assignee || '')) {
-              showHandoffToast(`Handed off to ${formData.assignee}. Make sure they have necessary context.`);
+              showHandoffToast(`Handed off to ${withGithub(formData.assignee, assigneeHandles)}. Make sure they have necessary context.`);
             }
           } else {
             await addTask(formData);
@@ -1408,7 +1517,7 @@ export default function App() {
               type: 'feature',
               assignee: defaultAssignee,
               description: '',
-              context: '',
+              context: CONTEXT_TEMPLATE,
               contextTool: user?.defaultLlmTool || 'Claude',
               promptHistory: '',
             })}
@@ -1507,7 +1616,6 @@ export default function App() {
             token={token}
             teamId={activeTeamId}
             teamName={activeTeam?.name || 'Workspace'}
-            isCreator={isTeamCreator}
             isOpen={showDeliverablesPinned}
             onToggle={() => setShowDeliverablesPinned(prev => !prev)}
             onStatsChange={handleDeliverablesStatsChange}
@@ -1526,13 +1634,11 @@ export default function App() {
                   type: 'feature',
                   assignee: defaultAssignee,
                   description: '',
-                  context: '',
+                  context: CONTEXT_TEMPLATE,
                   contextTool: user?.defaultLlmTool || 'Claude',
                   promptHistory: '',
                 })}
-                teamMembers={teamMembersList}
-                canReassign={isTeamCreator}
-                onReassign={handleReassign}
+                assigneeHandles={assigneeHandles}
               />
             ))}
           </div>
