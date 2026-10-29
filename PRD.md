@@ -81,6 +81,7 @@
 * **Handoff:** Reassigning is done from the task editor's Assignee field (not from the board), with a handoff confirmation toast.
 * **GitHub handles on assignees:** Wherever an assignee is shown or picked (task rows, editor Assignee dropdown, handoff toast), the member's GitHub handle appears in brackets, e.g. "Teammate B (@teammate-b)"; members without a handle show just their name.
 * **Extra task categories:** `urgent` and `additional` alongside `feature` and `bug`.
+* **Type markers by shape:** Fix types (Urgent fix, Bug) show a diamond marker and build types (Feature, Additional) a round dot, on type tags and the editor's Category Type buttons, so the split doesn't rely on colour alone.
 * **Prompt history log:** Separate `promptHistory` field per task, with "Quick Append" for timestamped, tool-tagged entries and "Copy All Prompts".
 * **Quick Append metadata:** Optional git commit hash and tokens-used fields on Quick Append, recorded on the entry as "Commit: `abc1234` · Tokens: 12,400"; invalid values are flagged inline. The prompt itself is wrapped in a fenced code block so any pasted markdown is shown literally. Each entry's heading also names who appended it, with their GitHub handle if set (e.g. "Claude · Teammate A (@teammate-a)").
 * **Editor views:** Full-page task editor with stacked / context-only / history-only views; keyboard shortcuts (Ctrl+S save, Esc back).

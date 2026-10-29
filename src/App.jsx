@@ -46,19 +46,23 @@ export const STAGES = [
 
 export const AI_TOOLS = ['Claude', 'Cursor', 'ChatGPT', 'Copilot', 'Gemini', 'Other'];
 
-// Scale 1 (DESIGN.md §2.2): warm = things to fix, cool = things being built
+// Scale 1 (DESIGN.md §2.2): warm = things to fix, cool = things being built.
+// Marker shape repeats the split without colour: diamond = fix, dot = build.
+const FIX_MARKER   = 'rotate-45';
+const BUILD_MARKER = 'rounded-full';
+
 export const TASK_TYPES = {
-  urgent:     { label: 'Urgent fix', tagClass: 'text-type-urgent border-type-urgent/70 bg-type-urgent/10',             swatch: 'bg-type-urgent' },
-  bug:        { label: 'Bug',        tagClass: 'text-type-bug border-type-bug/70 bg-type-bug/10',                      swatch: 'bg-type-bug' },
-  feature:    { label: 'Feature',    tagClass: 'text-type-feature border-type-feature/70 bg-type-feature/10',          swatch: 'bg-type-feature' },
-  additional: { label: 'Additional', tagClass: 'text-type-additional border-type-additional/70 bg-type-additional/10', swatch: 'bg-type-additional' },
+  urgent:     { label: 'Urgent fix', tagClass: 'text-type-urgent border-type-urgent/70 bg-type-urgent/10',             swatch: 'bg-type-urgent',     marker: FIX_MARKER },
+  bug:        { label: 'Bug',        tagClass: 'text-type-bug border-type-bug/70 bg-type-bug/10',                      swatch: 'bg-type-bug',        marker: FIX_MARKER },
+  feature:    { label: 'Feature',    tagClass: 'text-type-feature border-type-feature/70 bg-type-feature/10',          swatch: 'bg-type-feature',    marker: BUILD_MARKER },
+  additional: { label: 'Additional', tagClass: 'text-type-additional border-type-additional/70 bg-type-additional/10', swatch: 'bg-type-additional', marker: BUILD_MARKER },
 };
 
 export function TypeTag({ type }) {
   const cfg = TASK_TYPES[type] || TASK_TYPES.feature;
   return (
     <span className={`tag ${cfg.tagClass}`}>
-      <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${cfg.swatch}`} />
+      <span aria-hidden="true" className={`w-1.5 h-1.5 ${cfg.marker} ${cfg.swatch}`} />
       {cfg.label}
     </span>
   );
@@ -1041,7 +1045,7 @@ export function TaskEditorPage({ task, teamMembers, assigneeHandles = {}, curren
                           : 'bg-surface-card border-border-strong text-text-muted hover:bg-surface-elevated hover:text-text-primary'
                       }`}
                     >
-                      <span aria-hidden="true" className={`w-2 h-2 rounded-full ${cfg.swatch}`} />
+                      <span aria-hidden="true" className={`w-2 h-2 ${cfg.marker} ${cfg.swatch}`} />
                       {cfg.label}
                     </button>
                   ))}

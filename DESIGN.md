@@ -70,7 +70,7 @@ All four use 400-weight shades, which measure 6.4–7.8:1 on `surface-page`.
 | **Feature** | `type-feature` | `#60a5fa` | `tag text-type-feature border-type-feature/70 bg-type-feature/10` | Core roadmap deliverable |
 | **Additional** | `type-additional` | `#c084fc` | `tag text-type-additional border-type-additional/70 bg-type-additional/10` | Enhancement / stretch goal |
 
-The tag always prints the type name. The colour swatch inside it is `aria-hidden`.
+The tag always prints the type name. The colour swatch inside it is `aria-hidden`. Its shape repeats the warm/cool split without relying on colour: fix types (Urgent Fix, Bug) use a **diamond** (`rotate-45` square), build types (Feature, Additional) use a **round dot** (`rounded-full`). The same marker appears on the editor's Category Type buttons.
 
 ---
 

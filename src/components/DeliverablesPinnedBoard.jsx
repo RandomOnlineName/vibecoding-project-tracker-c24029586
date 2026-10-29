@@ -2,28 +2,28 @@ import { useState, useEffect, useRef } from 'react';
 
 const DELIVERABLE_ICONS = {
   presentation: (
-    <svg className="w-4 h-4 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
     </svg>
   ),
   demo: (
-    <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
   report: (
-    <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
   ),
   documentation: (
-    <svg className="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
     </svg>
   ),
   deployment: (
-    <svg className="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
     </svg>
   ),
@@ -255,7 +255,7 @@ export default function DeliverablesPinnedBoard({
     <section
       id="deliverables-board"
       aria-labelledby="deliverables-heading"
-      className="mb-4 bg-surface-column border border-border-subtle border-t-2 border-t-brand-accent animate-fade-in text-text-primary"
+      className="mb-4 bg-surface-column border border-border-subtle animate-fade-in text-text-primary"
     >
       {/* Header row */}
       <header className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 border-b border-border-strong">
@@ -323,7 +323,7 @@ export default function DeliverablesPinnedBoard({
                   {/* Top: Icon + Label + Status Tag */}
                   <div className="flex items-start justify-between gap-1.5 mb-2">
                     <h3 className="flex items-center gap-1.5 min-w-0 text-xs font-semibold text-text-primary">
-                      <span aria-hidden="true" className="shrink-0">{icon}</span>
+                      <span aria-hidden="true" className="shrink-0 text-text-muted">{icon}</span>
                       <span className="truncate" title={d.label}>{d.label}</span>
                     </h3>
 
