@@ -165,7 +165,7 @@ Shared classes live in `src/index.css` under `@layer components`.
 
 Target: **WCAG 2.2 AA** across the app.
 
-- **Landmarks:** every page has `<header>`, `<main>` and, where relevant, `<nav aria-label>` / `<aside>`. The board and editor include a **skip link** (`.skip-link`).
+- **Landmarks:** every page has `<header>`, `<main>` and, where relevant, `<nav aria-label>` / `<aside>`. **All visible content sits inside a landmark.** The page heading, filter bar, banners and toasts go inside `<main>`, and nothing sits between `<header>` and `<main>`. The board and editor include a **skip link** (`.skip-link`), which is the only element allowed outside a landmark.
 - **Headings:** a logical `h1 → h2 → h3` outline (page → column/section → task/cell).
 - **Lists & tables:** task columns are `<ul>`, team members are a `<table>` with `<th scope>`, metadata uses `<dl>`.
 - **Forms:** each control has a visible `<label htmlFor>` (or `sr-only` where the placeholder carries the visual label). Related controls are grouped in `<fieldset>`/`<legend>`. Hints are attached with `aria-describedby`. Inputs carry `autocomplete` tokens.
@@ -173,6 +173,7 @@ Target: **WCAG 2.2 AA** across the app.
 - **State:** toggles use `aria-pressed`, disclosures use `aria-expanded` + `aria-controls`, and the current team uses `aria-current`.
 - **Announcements:** copy and hand-off toasts, save results and task counts live in `aria-live`/`role="status"` regions.
 - **Icons:** decorative SVGs and colour swatches are `aria-hidden="true"`. Icon-only buttons have `aria-label`. External links say "(opens in new tab)" to screen readers.
+- **Label in name (WCAG 2.5.3):** a control with visible text must not use `aria-label` to replace it. Voice-control users say what they see ("click Set Link"). Keep the visible text as the start of the accessible name and add any context as `sr-only` text after it, e.g. `Set Link<span class="sr-only"> for Documentation</span>`; hide decorative glyphs (`+`, `✓`) with `aria-hidden`.
 - **Motion:** 150ms fades only. `prefers-reduced-motion` disables transitions and animations.
 - **Colour:** never the sole carrier of meaning (see §2.2–2.3).
 

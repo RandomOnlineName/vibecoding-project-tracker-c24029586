@@ -1336,9 +1336,9 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div role="status" className="min-h-screen bg-surface-page text-text-muted flex items-center justify-center text-sm">
-        Loading VibeTracker…
-      </div>
+      <main className="min-h-screen bg-surface-page text-text-muted flex items-center justify-center text-sm">
+        <p role="status">Loading VibeTracker…</p>
+      </main>
     );
   }
 
@@ -1570,6 +1570,8 @@ export default function App() {
         </div>
       </header>
 
+      {/* All page content below the top bar lives in <main> so it sits inside a landmark */}
+      <main id="board" tabIndex={-1} className="flex-1 flex flex-col focus:outline-none">
       {/* Page heading + primary actions */}
       <div className="px-4 sm:px-6 pt-5 pb-4 flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -1682,7 +1684,7 @@ export default function App() {
         </div>
       )}
 
-      <main id="board" tabIndex={-1} className="flex-1 flex flex-col px-4 sm:px-6 py-4 focus:outline-none">
+      <div className="flex-1 flex flex-col px-4 sm:px-6 py-4">
       {!activeTeam ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
           <p className="text-text-muted text-sm mb-4">No team selected.</p>
@@ -1734,9 +1736,9 @@ export default function App() {
           </div>
         </>
       )}
-      </main>
+      </div>
 
-      {/* Handoff toast (M7 task-owner) */}
+      {/* Handoff toast (M7 task-owner); fixed-position, but kept inside <main> for landmark coverage */}
       <div aria-live="polite" className="fixed bottom-6 right-6 z-50 max-w-sm">
         {handoffToast && (
           <p className="bg-surface-card border border-border-strong border-l-4 border-l-brand-accent shadow-2xl px-4 py-3 text-xs text-text-primary">
@@ -1744,6 +1746,7 @@ export default function App() {
           </p>
         )}
       </div>
+      </main>
     </div>
   );
 }

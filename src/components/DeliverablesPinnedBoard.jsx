@@ -396,9 +396,9 @@ export default function DeliverablesPinnedBoard({
                               type="button"
                               onClick={() => handleCopyLink(d.id, d.url)}
                               className="btn-ghost px-1.5 py-0.5 text-[10px] font-mono"
-                              aria-label={copiedId === d.id ? `${d.label} URL copied` : `Copy ${d.label} URL`}
                             >
                               {copiedId === d.id ? 'Copied' : 'Copy'}
+                              <span className="sr-only"> {d.label} URL</span>
                             </button>
                             <a
                               href={d.url}
@@ -432,12 +432,18 @@ export default function DeliverablesPinnedBoard({
                         type="button"
                         onClick={() => startEdit(d)}
                         className="link font-semibold no-underline hover:underline"
-                        aria-label={saveSuccessId === d.id ? `${d.label} saved` : `${d.url ? 'Edit' : 'Set'} ${d.label} link`}
                       >
+                        {/* Accessible name starts with the visible text (WCAG 2.5.3); the
+                            deliverable name is added for screen readers only */}
                         {saveSuccessId === d.id ? (
-                          <span className="text-status-success">✓ Saved</span>
+                          <span className="text-status-success">
+                            <span aria-hidden="true">✓ </span>Saved<span className="sr-only"> {d.label} link</span>
+                          </span>
                         ) : (
-                          <span>{d.url ? 'Edit' : '+ Set Link'}</span>
+                          <span>
+                            {d.url ? 'Edit Link' : <><span aria-hidden="true">+ </span>Set Link</>}
+                            <span className="sr-only"> for {d.label}</span>
+                          </span>
                         )}
                       </button>
                     ) : (
